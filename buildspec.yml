@@ -1,0 +1,43 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo Installing Bun runtime...
+      - curl -fsSL https://bun.sh/install | bash
+      - export BUN_INSTALL="$HOME/.bun"
+      - export PATH="$BUN_INSTALL/bin:$PATH"
+      - echo Bun version $(bun --version)
+
+  pre_build:
+    commands:
+      - echo Installing dependencies...
+      - bun install --frozen-lockfile
+      - echo Validating TypeScript...
+      - bun run check
+
+  build:
+    commands:
+      - echo Building application...
+      - bun run build
+      - echo Build completed on `date`
+
+  post_build:
+    commands:
+      - echo Post-build phase...
+      - echo Creating deployment package...
+      - cp -r dist/* ./
+      - echo Deployment package created
+
+artifacts:
+  files:
+    - '**/*'
+  name: central-analytics-$(date +%Y-%m-%d-%H-%M-%S)
+  discard-paths: no
+
+cache:
+  paths:
+    - 'node_modules/**/*'
+    - '$HOME/.bun/**/*'

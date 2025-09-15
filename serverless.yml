@@ -1,0 +1,97 @@
+service: central-analytics-auth
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'us-east-1'}
+  environment:
+    SESSIONS_TABLE: ${self:service}-sessions-${sls:stage}
+    USERS_TABLE: ${self:service}-users-${sls:stage}
+    CORS_ORIGIN: ${env:CORS_ORIGIN, '*'}
+    NODE_ENV: ${sls:stage}
+    SECRETS_ARN: ${self:service}-secrets-${sls:stage}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:DeleteItem
+          Resource:
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.SESSIONS_TABLE}
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.SESSIONS_TABLE}/index/*
+            - arn:aws:dynamodb:${aws:region}:${aws:accountId}:table/${self:provider.environment.USERS_TABLE}
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - arn:aws:secretsmanager:${aws:region}:${aws:accountId}:secret:${self:provider.environment.SECRETS_ARN}*
+
+functions:
+  auth:
+    handler: server/lambda.handler
+    events:
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors:
+            origin: ${self:provider.environment.CORS_ORIGIN}
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: true
+      - http:
+          path: /
+          method: ANY
+          cors:
+            origin: ${self:provider.environment.CORS_ORIGIN}
+            headers:
+              - Content-Type
+              - Authorization
+            allowCredentials: true
+
+resources:
+  Resources:
+    SessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SESSIONS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: token
+            AttributeType: S
+          - AttributeName: user_id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: token
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: user_id-index
+            KeySchema:
+              - AttributeName: user_id
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.USERS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: apple_sub
+            AttributeType: S
+        KeySchema:
+          - AttributeName: apple_sub
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline

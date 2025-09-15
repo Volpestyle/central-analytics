@@ -1,14 +1,47 @@
 {
-  "name": "shaggy-shepherd",
+  "name": "central-analytics",
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "concurrently \"pnpm run dev:astro\" \"pnpm run dev:server\"",
+    "dev:astro": "astro dev",
+    "dev:server": "tsx watch server/index.ts",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "server": "tsx server/index.ts",
+    "server:prod": "node --loader tsx server/index.ts"
   },
   "dependencies": {
-    "astro": "^5.13.7"
+    "@astrojs/node": "^9.4.3",
+    "@astrojs/react": "^4.3.1",
+    "@aws-sdk/client-dynamodb": "^3.888.0",
+    "@aws-sdk/client-secrets-manager": "^3.888.0",
+    "@aws-sdk/lib-dynamodb": "^3.888.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "apple-signin-auth": "^2.0.0",
+    "astro": "^5.13.7",
+    "echarts": "^6.0.0",
+    "echarts-for-react": "^3.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "react": "^19.1.1",
+    "react-apple-signin-auth": "^1.1.2",
+    "react-dom": "^19.1.1",
+    "vite-plugin-pwa": "^1.0.3",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@astrojs/tailwind": "^6.0.2",
+    "@types/aws-lambda": "^8.10.152",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.4.0",
+    "@vite-pwa/astro": "^1.1.0",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0",
+    "tsx": "^4.20.5",
+    "workbox-window": "^7.3.0"
   }
 }

@@ -1,0 +1,126 @@
+---
+// Main Layout Component for iOS 26
+export interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content="Central Analytics Dashboard - Business Intelligence Platform" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+    <link rel="stylesheet" href="/src/styles/global.css" />
+
+    <!-- iOS 26 and iPhone 17 Pro optimizations -->
+    <meta name="apple-mobile-web-app-title" content="Central Analytics" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <!-- Face ID / Touch ID support meta tags -->
+    <meta name="apple-touch-fullscreen" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <style>
+      /* Base styles for iOS 26 */
+      :root {
+        --safe-area-inset-top: env(safe-area-inset-top);
+        --safe-area-inset-right: env(safe-area-inset-right);
+        --safe-area-inset-bottom: env(safe-area-inset-bottom);
+        --safe-area-inset-left: env(safe-area-inset-left);
+      }
+
+      html {
+        height: 100%;
+        -webkit-text-size-adjust: 100%;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background: #000000;
+        font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', sans-serif;
+        overscroll-behavior: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      /* Allow scrolling while preventing bounce */
+      body {
+        min-height: 100vh;
+        overflow-x: hidden;
+        overscroll-behavior: none;
+      }
+
+      #app {
+        min-height: 100vh;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Safe area padding for iPhone 17 Pro */
+      .safe-area-top {
+        padding-top: var(--safe-area-inset-top);
+      }
+
+      .safe-area-bottom {
+        padding-bottom: var(--safe-area-inset-bottom);
+      }
+
+      /* Disable text selection except for inputs */
+      * {
+        -webkit-user-select: none;
+        user-select: none;
+      }
+
+      input, textarea {
+        -webkit-user-select: text;
+        user-select: text;
+      }
+
+      /* iOS input styling fixes */
+      input, textarea, select {
+        -webkit-appearance: none;
+        appearance: none;
+        border-radius: 0;
+      }
+
+      /* Prevent zoom on input focus */
+      input[type="text"],
+      input[type="email"],
+      input[type="number"],
+      input[type="tel"],
+      input[type="password"],
+      textarea {
+        font-size: 16px !important;
+      }
+
+      /* Loading animation */
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+
+      .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <slot />
+    </div>
+  </body>
+</html>

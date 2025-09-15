@@ -1,0 +1,81 @@
+{
+  "family": "central-analytics",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "central-analytics",
+      "image": "placeholder-image",
+      "portMappings": [
+        {
+          "containerPort": 4321,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "PORT",
+          "value": "4321"
+        },
+        {
+          "name": "HOST",
+          "value": "0.0.0.0"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/aws-access-key-id"
+        },
+        {
+          "name": "AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/aws-secret-access-key"
+        },
+        {
+          "name": "APPSTORE_CONNECT_ISSUER_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/appstore-issuer-id"
+        },
+        {
+          "name": "APPSTORE_CONNECT_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/appstore-key-id"
+        },
+        {
+          "name": "APPSTORE_CONNECT_PRIVATE_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/appstore-private-key"
+        },
+        {
+          "name": "APPSTORE_APP_ID",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/appstore-app-id"
+        },
+        {
+          "name": "APPSTORE_VENDOR_NUMBER",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:account-id:secret:central-analytics/appstore-vendor-number"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/central-analytics",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:4321/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ],
+  "executionRoleArn": "arn:aws:iam::account-id:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::account-id:role/central-analytics-task-role"
+}

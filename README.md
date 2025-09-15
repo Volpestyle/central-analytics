@@ -1,43 +1,92 @@
-# Astro Starter Kit: Minimal
+# Central Analytics Dashboard
 
-```sh
-bun create astro@latest -- --template minimal
+A secure admin dashboard with Apple Sign In authentication, built with Astro, React, and TypeScript.
+
+## Features
+
+- 🔐 **Apple Sign In** with Face ID/Touch ID support on iOS 26 and iPhone 17 Pro
+- 🚀 **Server-side authentication** with JWT tokens
+- 📊 **Analytics dashboard** with ECharts visualizations
+- 📱 **PWA support** for installation on mobile devices
+- 🎨 **Tailwind CSS** for modern UI design
+- ⚡ **Fast development** with pnpm and Vite
+
+## Tech Stack
+
+- **Frontend**: Astro, React, TypeScript, Tailwind CSS
+- **Authentication**: Apple Sign In, JWT
+- **Charts**: ECharts
+- **Server**: Node.js with TypeScript (tsx)
+- **Package Manager**: pnpm
+
+## Quick Start
+
+1. **Install dependencies**
+   ```bash
+   pnpm install
+   ```
+
+2. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your Apple Service ID and JWT secret
+   ```
+
+3. **Start development servers**
+   ```bash
+   pnpm run dev
+   ```
+   - Astro dev server: http://localhost:4321
+   - Auth server: http://localhost:3001
+
+## Authentication Setup
+
+See [APPLE_AUTH_SETUP.md](./APPLE_AUTH_SETUP.md) for detailed instructions on:
+- Setting up Apple Developer account
+- Configuring Sign in with Apple
+- Getting your Apple sub for whitelist
+- Adding additional authorized users
+
+## Available Scripts
+
+- `pnpm run dev` - Start both Astro and auth servers concurrently
+- `pnpm run dev:astro` - Start only the Astro dev server
+- `pnpm run dev:server` - Start only the auth server
+- `pnpm run build` - Build for production
+- `pnpm run preview` - Preview production build
+- `pnpm run server` - Run auth server (without watch mode)
+
+## Project Structure
+
 ```
-
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
+central-analytics/
 ├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+│   ├── components/      # React components
+│   ├── pages/           # Astro pages
+│   ├── layouts/         # Layout components
+│   └── stores/          # Zustand stores
+├── server/
+│   └── index.ts         # Auth server with Apple Sign In
+├── public/              # Static assets
+└── astro.config.mjs     # Astro configuration
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+## Security
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- All authentication logic runs server-side
+- Whitelist of authorized Apple IDs is maintained on the server
+- JWT tokens expire after 7 days
+- CORS configured per environment
+- HTTPS required in production
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Deployment
 
-## 🧞 Commands
+1. Set production environment variables
+2. Build the project: `pnpm run build`
+3. Deploy the Astro app to your hosting provider
+4. Deploy the auth server with Node.js support
+5. Configure HTTPS and domain settings
 
-All commands are run from the root of the project, from a terminal:
+## License
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Private - All rights reserved

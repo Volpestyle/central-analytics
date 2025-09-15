@@ -1,0 +1,37 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            # Install Bun
+            - curl -fsSL https://bun.sh/install | bash
+            - export BUN_INSTALL="$HOME/.bun"
+            - export PATH="$BUN_INSTALL/bin:$PATH"
+            - bun --version
+            # Install dependencies
+            - bun install --frozen-lockfile
+            # Run type checking
+            - bun run check
+        build:
+          commands:
+            # Build the application
+            - bun run build
+      artifacts:
+        baseDirectory: dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          - $HOME/.bun/**/*
+    appRoot: .
+
+    # Environment variables (set these in Amplify Console)
+    envVariables:
+      - name: AWS_REGION
+        value: us-east-1
+      - name: NODE_ENV
+        value: production
+      - name: ASTRO_TELEMETRY_DISABLED
+        value: "1"
