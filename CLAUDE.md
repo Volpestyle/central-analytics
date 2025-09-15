@@ -1,0 +1,6 @@
+- never use any in typescript, always create the appropriate type
+- never mock, stub, or put placeholder functions or data unless explicitly asked to
+- If unsure about how to proceed, ask for clarification or guidance
+- refer to /Users/jamesvolpe/web/central-analytics/docs for guidelines on how to build this app.
+- don't create tests unless specifically asked to
+- always seek updated documentation on Astro v5 https://docs.astro.build/en/getting-started/
