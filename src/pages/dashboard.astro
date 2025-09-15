@@ -1,0 +1,21 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Central Analytics Dashboard">
+  <div id="dashboard-root"></div>
+</Layout>
+
+<script>
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+  import { DashboardApp } from '@components/DashboardApp';
+
+  // Mount React app
+  const container = document.getElementById('dashboard-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(React.createElement(DashboardApp));
+  }
+</script>

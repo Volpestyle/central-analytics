@@ -1,0 +1,314 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'packages/backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'packages/backend/**'
+
+env:
+  AWS_REGION: us-east-1
+  GO_VERSION: '1.22'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: packages/backend/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./packages/backend/coverage.out
+          flags: backend
+          name: backend-coverage
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          working-directory: packages/backend
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    defaults:
+      run:
+        working-directory: packages/backend
+
+    strategy:
+      matrix:
+        function: [auth, metrics, appstore]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: packages/backend/go.sum
+
+      - name: Build Lambda function
+        run: |
+          make ${{ matrix.function }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.function }}-function
+          path: packages/backend/build/${{ matrix.function }}/function.zip
+          retention-days: 1
+
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: development
+      url: https://dev.central-analytics.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: packages/backend/build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy with Serverless Framework
+        working-directory: packages/backend
+        run: |
+          npm install -g serverless
+          npm install serverless-plugin-optimize serverless-offline
+          serverless deploy --stage dev
+        env:
+          ADMIN_APPLE_SUB: ${{ secrets.ADMIN_APPLE_SUB }}
+          DEFAULT_APP_ID: ${{ secrets.DEFAULT_APP_ID }}
+
+      - name: Run smoke tests
+        working-directory: packages/backend
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name central-analytics-backend-dev \
+            --query 'Stacks[0].Outputs[?OutputKey==`ServiceEndpoint`].OutputValue' \
+            --output text)
+
+          echo "Testing API at $API_URL"
+          curl -f "$API_URL/api/auth/verify" -X OPTIONS || exit 1
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: staging
+      url: https://staging.central-analytics.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: packages/backend/build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy with Terraform
+        working-directory: packages/backend/deploy/terraform
+        run: |
+          terraform init
+          terraform workspace select staging || terraform workspace new staging
+          terraform apply -auto-approve \
+            -var="environment=staging" \
+            -var="admin_apple_sub=${{ secrets.ADMIN_APPLE_SUB }}" \
+            -var="default_app_id=${{ secrets.DEFAULT_APP_ID }}"
+
+      - name: Run integration tests
+        working-directory: packages/backend
+        run: |
+          API_URL=$(terraform output -raw api_gateway_url)
+          go test -v -tags=integration ./tests/... -api-url="$API_URL"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://analytics.example.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: packages/backend/build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy with Terraform
+        working-directory: packages/backend/deploy/terraform
+        run: |
+          terraform init
+          terraform workspace select prod || terraform workspace new prod
+          terraform apply -auto-approve \
+            -var="environment=prod" \
+            -var="admin_apple_sub=${{ secrets.ADMIN_APPLE_SUB }}" \
+            -var="default_app_id=${{ secrets.DEFAULT_APP_ID }}"
+
+      - name: Verify deployment
+        working-directory: packages/backend
+        run: |
+          API_URL=$(terraform output -raw api_gateway_url)
+
+          # Health check
+          curl -f "$API_URL/api/auth/verify" -X OPTIONS || exit 1
+
+          # Send deployment notification
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"Backend deployed to production\",
+              \"attachments\": [{
+                \"color\": \"good\",
+                \"fields\": [
+                  {\"title\": \"Environment\", \"value\": \"Production\", \"short\": true},
+                  {\"title\": \"Version\", \"value\": \"${{ github.sha }}\", \"short\": true},
+                  {\"title\": \"API URL\", \"value\": \"$API_URL\", \"short\": false}
+                ]
+              }]
+            }"
+
+      - name: Create release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: backend-v${{ github.run_number }}
+          release_name: Backend Release v${{ github.run_number }}
+          body: |
+            Backend deployment to production
+
+            ## Changes
+            - Commit: ${{ github.sha }}
+            - API Gateway URL: Available in AWS Console
+
+            ## Lambda Functions
+            - Auth function deployed
+            - Metrics function deployed
+            - AppStore function deployed
+          draft: false
+          prerelease: false
+
+  rollback:
+    name: Rollback Production
+    runs-on: ubuntu-latest
+    if: failure() && github.ref == 'refs/heads/main'
+    needs: deploy-production
+    environment:
+      name: production-rollback
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Rollback Lambda functions
+        run: |
+          # Get previous version for each function
+          for FUNCTION in auth metrics appstore; do
+            FUNCTION_NAME="central-analytics-prod-$FUNCTION"
+
+            # Get current version
+            CURRENT_VERSION=$(aws lambda get-function --function-name $FUNCTION_NAME \
+              --query 'Configuration.Version' --output text)
+
+            # Publish previous version as $LATEST
+            if [ "$CURRENT_VERSION" -gt "1" ]; then
+              PREVIOUS_VERSION=$((CURRENT_VERSION - 1))
+              aws lambda update-function-code \
+                --function-name $FUNCTION_NAME \
+                --s3-bucket central-analytics-lambda-versions-prod \
+                --s3-key "$FUNCTION_NAME-v$PREVIOUS_VERSION.zip"
+
+              echo "Rolled back $FUNCTION_NAME to version $PREVIOUS_VERSION"
+            fi
+          done
+
+      - name: Send rollback notification
+        if: always()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d "{
+              \"text\": \"⚠️ Production deployment rolled back\",
+              \"attachments\": [{
+                \"color\": \"warning\",
+                \"fields\": [
+                  {\"title\": \"Environment\", \"value\": \"Production\", \"short\": true},
+                  {\"title\": \"Commit\", \"value\": \"${{ github.sha }}\", \"short\": true},
+                  {\"title\": \"Reason\", \"value\": \"Deployment verification failed\", \"short\": false}
+                ]
+              }]
+            }"

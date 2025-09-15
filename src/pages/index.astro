@@ -1,0 +1,45 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Central Analytics - Sign In">
+  <div id="auth-root"></div>
+</Layout>
+
+<script>
+  import { AuthApp } from '@components/AuthApp';
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+
+  // Mount React app
+  const container = document.getElementById('auth-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(React.createElement(AuthApp));
+  }
+
+  // Register service worker for PWA
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+    });
+  }
+
+  // Handle PWA install prompt
+  interface BeforeInstallPromptEvent extends Event {
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  }
+
+  let deferredPrompt: BeforeInstallPromptEvent | null = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e as BeforeInstallPromptEvent;
+    // Store for use in BiometricLogin component
+    (window as any).deferredPrompt = deferredPrompt;
+  });
+</script>

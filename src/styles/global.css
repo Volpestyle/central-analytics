@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-surface-light;
+  }
+
+  body {
+    @apply bg-background text-white;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    @apply bg-background;
+  }
+}
+
+@layer components {
+  .chart-loading {
+    @apply animate-pulse bg-surface rounded-lg;
+  }
+
+  .glass-effect {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    background: rgba(17, 17, 17, 0.8);
+  }
+
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(90deg, #0A84FF, #32D74B, #FFD60A, #BF5AF2);
+    background-size: 200% 200%;
+    animation: gradient-animation 3s ease infinite;
+  }
+
+  @keyframes gradient-animation {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .status-pulse {
+    @apply relative;
+  }
+
+  .status-pulse::before {
+    content: '';
+    @apply absolute inset-0 rounded-full animate-ping;
+    background: inherit;
+    opacity: 0.75;
+  }
+}
+
+/* ECharts responsive fixes */
+.echarts-for-react {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-surface;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface-light rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
+}
+
+/* Mobile touch optimizations */
+@media (hover: none) {
+  button, a, select {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

@@ -1,0 +1,30 @@
+---
+import Layout from '../layouts/Layout.astro';
+import '../styles/global.css';
+---
+
+<Layout title="Admin Panel - Central Analytics">
+  <div id="admin-root"></div>
+</Layout>
+
+<script>
+  import React from 'react';
+  import { createRoot } from 'react-dom/client';
+  import { AdminGuard } from '@components/auth/AdminGuard';
+  import { AdminPanel } from '@components/AdminPanel';
+
+  // Mount React app with AdminGuard
+  const AdminApp = () => {
+    return React.createElement(
+      AdminGuard,
+      { redirectTo: '/dashboard' },
+      React.createElement(AdminPanel)
+    );
+  };
+
+  const container = document.getElementById('admin-root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(React.createElement(AdminApp));
+  }
+</script>

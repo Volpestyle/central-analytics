@@ -1,0 +1,303 @@
+service: central-analytics-backend
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: provided.al2
+  architecture: arm64
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+  memorySize: 512
+  timeout: 30
+  environment:
+    STAGE: ${self:provider.stage}
+    JWT_SECRET_NAME: central-analytics/jwt-secret
+    APPSTORE_SECRET_NAME: central-analytics/appstore-connect
+    ADMIN_APPLE_SUB: ${env:ADMIN_APPLE_SUB}
+    DEFAULT_APP_ID: ${env:DEFAULT_APP_ID}
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - secretsmanager:GetSecretValue
+          Resource:
+            - arn:aws:secretsmanager:${self:provider.region}:*:secret:central-analytics/*
+        - Effect: Allow
+          Action:
+            - cloudwatch:GetMetricData
+            - cloudwatch:GetMetricStatistics
+            - cloudwatch:ListMetrics
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - ce:GetCostAndUsage
+            - ce:GetCostForecast
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - dynamodb:DescribeTable
+            - dynamodb:ListTables
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: '*'
+
+  apiGateway:
+    binaryMediaTypes:
+      - '*/*'
+    cors:
+      origin: '*'
+      headers:
+        - Content-Type
+        - Authorization
+        - X-Request-ID
+      allowCredentials: false
+
+custom:
+  corsSettings:
+    origin: '*'
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+      - X-Amz-Security-Token
+      - X-Amz-User-Agent
+      - X-Request-ID
+    allowCredentials: false
+
+functions:
+  auth:
+    handler: bootstrap
+    package:
+      artifact: build/auth/function.zip
+    events:
+      - http:
+          path: /api/auth/verify
+          method: post
+          cors: ${self:custom.corsSettings}
+      - http:
+          path: /api/auth/refresh
+          method: post
+          cors: ${self:custom.corsSettings}
+      - http:
+          path: /api/auth/logout
+          method: post
+          cors: ${self:custom.corsSettings}
+    environment:
+      JWT_SECRET: ${ssm:/central-analytics/${self:provider.stage}/jwt-secret}
+
+  metrics:
+    handler: bootstrap
+    package:
+      artifact: build/metrics/function.zip
+    timeout: 60
+    events:
+      - http:
+          path: /api/metrics/lambda
+          method: post
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/metrics/apigateway
+          method: post
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/metrics/dynamodb
+          method: post
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/metrics/all
+          method: post
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+    environment:
+      JWT_SECRET: ${ssm:/central-analytics/${self:provider.stage}/jwt-secret}
+
+  appstore:
+    handler: bootstrap
+    package:
+      artifact: build/appstore/function.zip
+    timeout: 60
+    events:
+      - http:
+          path: /api/appstore/analytics
+          method: get
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/appstore/builds
+          method: get
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/appstore/testflight
+          method: get
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+      - http:
+          path: /api/appstore/ratings
+          method: get
+          cors: ${self:custom.corsSettings}
+          authorizer:
+            name: auth
+            resultTtlInSeconds: 300
+    environment:
+      JWT_SECRET: ${ssm:/central-analytics/${self:provider.stage}/jwt-secret}
+
+resources:
+  Resources:
+    # DynamoDB table for session management (optional)
+    SessionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: central-analytics-sessions-${self:provider.stage}
+        AttributeDefinitions:
+          - AttributeName: sessionId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: sessionId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            BillingMode: PAY_PER_REQUEST
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        Tags:
+          - Key: Environment
+            Value: ${self:provider.stage}
+          - Key: Service
+            Value: central-analytics
+
+    # S3 bucket for frontend hosting
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: central-analytics-frontend-${self:provider.stage}
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: error.html
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        CorsConfiguration:
+          CorsRules:
+            - AllowedHeaders: ['*']
+              AllowedMethods: [GET, HEAD]
+              AllowedOrigins: ['*']
+              MaxAge: 3000
+
+    # CloudFront distribution
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          DefaultRootObject: index.html
+          Origins:
+            - Id: S3Origin
+              DomainName: !GetAtt FrontendBucket.WebsiteURL
+              CustomOriginConfig:
+                OriginProtocolPolicy: http-only
+          DefaultCacheBehavior:
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+            CachedMethods:
+              - GET
+              - HEAD
+            Compress: true
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+          CustomErrorResponses:
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+          PriceClass: PriceClass_100
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+          Tags:
+            - Key: Environment
+              Value: ${self:provider.stage}
+            - Key: Service
+              Value: central-analytics
+
+  Outputs:
+    ApiGatewayUrl:
+      Description: API Gateway endpoint URL
+      Value:
+        Fn::Join:
+          - ''
+          - - 'https://'
+            - Ref: ApiGatewayRestApi
+            - '.execute-api.'
+            - ${self:provider.region}
+            - '.amazonaws.com/'
+            - ${self:provider.stage}
+
+    FrontendBucketName:
+      Description: Frontend S3 bucket name
+      Value:
+        Ref: FrontendBucket
+
+    CloudFrontDistributionId:
+      Description: CloudFront distribution ID
+      Value:
+        Ref: CloudFrontDistribution
+
+    CloudFrontDomainName:
+      Description: CloudFront distribution domain name
+      Value:
+        Fn::GetAtt:
+          - CloudFrontDistribution
+          - DomainName
+
+plugins:
+  - serverless-plugin-optimize
+  - serverless-offline
+
+package:
+  individually: true
+  exclude:
+    - ./**
+  include:
+    - ./build/**
