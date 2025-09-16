@@ -40,6 +40,7 @@ export interface AuthState {
 }
 
 // API endpoints (configure these based on your backend)
+// If PUBLIC_API_URL is empty, use relative URLs (same origin)
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || '';
 
 export const useAuthStore = create<AuthState>()(
@@ -59,10 +60,13 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
 
         try {
-          // Initialize Apple Sign In
+          // Initialize Apple Sign In with proper redirect URI from env
+          const redirectUri = import.meta.env.PUBLIC_APPLE_REDIRECT_URI || `${window.location.origin}/auth/callback`;
+          console.log('Initializing Apple Sign In with redirect:', redirectUri);
+
           await appleAuth.initializeAppleSignIn(
             import.meta.env.PUBLIC_APPLE_CLIENT_ID || '',
-            `${window.location.origin}/auth/callback`
+            redirectUri
           );
 
           // Trigger Apple Sign In flow
@@ -131,9 +135,22 @@ export const useAuthStore = create<AuthState>()(
             }, 1000);
           }
         } catch (error) {
+          console.error('Apple Sign In error:', error);
+          const errorMessage = (error as Error).message || 'Authentication failed';
+
+          // Provide more helpful error messages
+          let userFriendlyMessage = errorMessage;
+          if (errorMessage.includes('load') || errorMessage.includes('SDK')) {
+            userFriendlyMessage = 'Unable to load Apple Sign In. Please check your internet connection and refresh the page.';
+          } else if (errorMessage.includes('cancelled')) {
+            userFriendlyMessage = 'Sign in was cancelled.';
+          } else if (errorMessage.includes('popup')) {
+            userFriendlyMessage = 'Sign in popup was blocked. Please allow popups for this site.';
+          }
+
           set({
             isLoading: false,
-            error: (error as Error).message,
+            error: userFriendlyMessage,
             isAuthenticated: false,
           });
         }

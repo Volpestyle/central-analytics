@@ -4,6 +4,7 @@
 FUNCTIONS := auth metrics appstore
 BUILD_DIR := build
 DEPLOY_ENV ?= dev
+PORT ?= 8080
 
 # Go build flags
 GOFLAGS := -ldflags="-s -w"
@@ -77,6 +78,17 @@ deploy-sam: build
 		--region $(AWS_REGION) \
 		--parameter-overrides Environment=$(DEPLOY_ENV)
 
+# Run local HTTP server
+run:
+	@echo "Starting local HTTP server on port $(PORT)..."
+	@go run cmd/local-server/main.go
+
+# Run local server with hot reload (requires air)
+dev:
+	@echo "Starting development server with hot reload on port $(PORT)..."
+	@which air > /dev/null 2>&1 || (echo "Installing air..." && go install github.com/air-verse/air@latest)
+	@air
+
 # Local development with SAM
 local:
 	@echo "Starting local API with SAM..."
@@ -144,6 +156,8 @@ docker-build:
 # Help
 help:
 	@echo "Available targets:"
+	@echo "  make run            - Run local HTTP server"
+	@echo "  make dev            - Run development server with hot reload"
 	@echo "  make build          - Build all Lambda functions"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make test           - Run unit tests"
@@ -156,5 +170,6 @@ help:
 	@echo "  make create-secrets - Create AWS secrets"
 	@echo ""
 	@echo "Environment variables:"
+	@echo "  PORT                - HTTP server port (default: 8080)"
 	@echo "  DEPLOY_ENV          - Deployment environment (default: dev)"
 	@echo "  AWS_REGION          - AWS region (default: us-east-1)"

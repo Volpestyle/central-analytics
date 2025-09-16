@@ -1,23 +1,14 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { AuthApp } from '@components/AuthApp';
 import '../styles/global.css';
 ---
 
 <Layout title="Central Analytics - Sign In">
-  <div id="auth-root"></div>
+  <AuthApp client:only="react" />
 </Layout>
 
 <script>
-  import { AuthApp } from '@components/AuthApp';
-  import React from 'react';
-  import { createRoot } from 'react-dom/client';
-
-  // Mount React app
-  const container = document.getElementById('auth-root');
-  if (container) {
-    const root = createRoot(container);
-    root.render(React.createElement(AuthApp));
-  }
 
   // Register service worker for PWA
   if ('serviceWorker' in navigator) {

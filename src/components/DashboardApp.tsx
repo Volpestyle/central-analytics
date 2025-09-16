@@ -146,7 +146,10 @@ export const DashboardApp: React.FC = () => {
         {/* Application Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* ilikeyacut App Card */}
-          <div className="bg-surface rounded-xl p-6 border border-surface-light hover:border-primary/30 transition-colors">
+          <a
+            href="/apps/ilikeyacut"
+            className="block bg-surface rounded-xl p-6 border border-surface-light hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/10 cursor-pointer"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center">
                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,7 +175,11 @@ export const DashboardApp: React.FC = () => {
                 <span className="text-success font-medium">$2,458</span>
               </div>
             </div>
-          </div>
+
+            <div className="mt-4 pt-3 border-t border-surface-light">
+              <span className="text-xs text-primary font-medium">View Analytics →</span>
+            </div>
+          </a>
 
           {/* Placeholder for future apps */}
           <div className="bg-surface/50 rounded-xl p-6 border border-surface-light border-dashed">

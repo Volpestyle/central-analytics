@@ -71,6 +71,21 @@ export default defineConfig({
   vite: {
     ssr: {
       noExternal: ['zustand']
+    },
+    server: {
+      allowedHosts: [
+        'localhost',
+        'd960a134812e.ngrok-free.app',
+        '.ngrok-free.app',
+        '.ngrok.io'
+      ],
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false
+        }
+      }
     }
   }
 });

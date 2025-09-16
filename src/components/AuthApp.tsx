@@ -32,7 +32,8 @@ export const AuthApp: React.FC = () => {
           window.location.href = '/dashboard';
         }}
         onCancel={() => {
-          window.location.reload();
+          // State will be reset by signOut in TwoFactorAuth
+          // Component will re-render automatically
         }}
       />
     );

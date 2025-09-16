@@ -84,7 +84,7 @@ interface PublicKeyCredentialCreationOptionsJSON {
 }
 
 // Admin Apple ID (configure this with your specific Apple ID sub)
-const ADMIN_APPLE_SUB = process.env.PUBLIC_ADMIN_APPLE_SUB || '';
+const ADMIN_APPLE_SUB = import.meta.env.PUBLIC_ADMIN_APPLE_SUB || '';
 
 class AppleAuthenticationSDK {
   private static instance: AppleAuthenticationSDK;
@@ -125,18 +125,30 @@ class AppleAuthenticationSDK {
     if (this.appleAuthScriptLoaded) return;
 
     return new Promise((resolve, reject) => {
+      // Check if script already exists
+      const existingScript = document.querySelector('script[src*="appleid.auth.js"]');
+      if (existingScript) {
+        this.appleAuthScriptLoaded = true;
+        resolve();
+        return;
+      }
+
       const script = document.createElement('script');
       script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
       script.async = true;
       script.defer = true;
+      script.crossOrigin = 'anonymous';
 
       script.onload = () => {
         this.appleAuthScriptLoaded = true;
+        console.log('Apple Sign In SDK loaded successfully');
         resolve();
       };
 
-      script.onerror = () => {
-        reject(new Error('Failed to load Apple Sign In SDK'));
+      script.onerror = (error) => {
+        console.error('Failed to load Apple Sign In SDK:', error);
+        this.appleAuthScriptLoaded = false;
+        reject(new Error('Failed to load Apple Sign In SDK. Please check your internet connection and try again.'));
       };
 
       document.head.appendChild(script);
@@ -146,31 +158,52 @@ class AppleAuthenticationSDK {
   /**
    * Initialize Apple Sign In
    */
-  async initializeAppleSignIn(clientId: string, redirectUri: string): Promise<void> {
-    await this.loadAppleAuthScript();
-
-    if (!window.AppleID) {
-      throw new Error('Apple Sign In SDK not available');
+  async initializeAppleSignIn(clientId: string, redirectUri?: string): Promise<void> {
+    try {
+      await this.loadAppleAuthScript();
+    } catch (error) {
+      console.error('Error loading Apple Sign In SDK:', error);
+      throw new Error('Unable to load Apple Sign In. Please refresh the page and try again.');
     }
 
-    window.AppleID.auth.init({
+    // Wait a bit for the script to fully initialize
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (!window.AppleID || !window.AppleID.auth) {
+      console.error('AppleID object not found on window');
+      throw new Error('Apple Sign In SDK not available. Please refresh the page.');
+    }
+
+    const config = {
       clientId,
       scope: 'name email',
-      redirectURI: redirectUri,
+      redirectURI: redirectUri || import.meta.env.PUBLIC_APPLE_REDIRECT_URI || window.location.origin + '/auth/callback',
       state: this.generateState(),
       usePopup: true
-    });
+    };
+
+    console.log('Apple Sign In Config:', config);
+
+    try {
+      window.AppleID.auth.init(config);
+      console.log('Apple Sign In initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Apple Sign In:', error);
+      throw new Error('Failed to initialize Apple Sign In');
+    }
   }
 
   /**
    * Trigger Apple Sign In flow
    */
   async signInWithApple(): Promise<AppleAuthCredentials> {
-    if (!window.AppleID) {
-      throw new Error('Apple Sign In not initialized');
+    if (!window.AppleID || !window.AppleID.auth) {
+      console.error('Apple Sign In not properly initialized');
+      throw new Error('Apple Sign In not initialized. Please refresh the page and try again.');
     }
 
     try {
+      console.log('Starting Apple Sign In flow...');
       const response = await window.AppleID.auth.signIn();
 
       // Store the auth state for later verification

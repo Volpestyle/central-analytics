@@ -24,6 +24,16 @@ export const BiometricLogin: React.FC<BiometricLoginProps> = ({ onSuccess }) => 
   const [isPWA, setIsPWA] = useState(false);
 
   useEffect(() => {
+    // Clear error after 10 seconds
+    if (error) {
+      const timer = setTimeout(() => {
+        clearError();
+      }, 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, clearError]);
+
+  useEffect(() => {
     // Check if app is running as PWA
     const checkPWAStatus = () => {
       const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
@@ -51,9 +61,10 @@ export const BiometricLogin: React.FC<BiometricLoginProps> = ({ onSuccess }) => 
   }, [checkBiometricAvailability, isPWA]);
 
   const handleSignIn = async () => {
-    clearError();
+    // Don't clear error immediately - let user see what went wrong
+    // Error will auto-clear after 10 seconds or on successful auth
     await signInWithApple();
-    if (onSuccess) {
+    if (onSuccess && useAuthStore.getState().isAuthenticated) {
       onSuccess();
     }
   };
@@ -157,7 +168,17 @@ export const BiometricLogin: React.FC<BiometricLoginProps> = ({ onSuccess }) => 
             {/* Error Message */}
             {error && (
               <div className="bg-error/10 border border-error/30 rounded-lg p-3 animate-slide-up">
-                <p className="text-sm text-error">{error}</p>
+                <div className="flex items-start space-x-2">
+                  <svg className="w-5 h-5 text-error flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="flex-1">
+                    <p className="text-sm text-error">{error}</p>
+                    {error.includes('cancelled') && (
+                      <p className="text-xs text-error/70 mt-1">Please try again when you're ready</p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

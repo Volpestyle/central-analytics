@@ -11,8 +11,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.32.8
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.28.6
 	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/google/uuid v1.6.0
+	github.com/gorilla/mux v1.8.1
 	github.com/lestrrat-go/jwx/v2 v2.0.21
+	github.com/rs/cors v1.11.1
 )
 
 require (
