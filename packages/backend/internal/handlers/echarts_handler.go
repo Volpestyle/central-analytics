@@ -84,6 +84,11 @@ func (h *EChartsHandler) GetLambdaMetricsECharts(w http.ResponseWriter, r *http.
 		return dataPoints[i].Timestamp < dataPoints[j].Timestamp
 	})
 
+	// Ensure we return an empty array instead of null
+	if dataPoints == nil {
+		dataPoints = []EChartsDataPoint{}
+	}
+
 	response := EChartsResponse{
 		Data: dataPoints,
 		Metadata: map[string]interface{}{
@@ -138,6 +143,11 @@ func (h *EChartsHandler) GetAPIGatewayMetricsECharts(w http.ResponseWriter, r *h
 	sort.Slice(dataPoints, func(i, j int) bool {
 		return dataPoints[i].Timestamp < dataPoints[j].Timestamp
 	})
+
+	// Ensure we return an empty array instead of null
+	if dataPoints == nil {
+		dataPoints = []EChartsDataPoint{}
+	}
 
 	response := EChartsResponse{
 		Data: dataPoints,
@@ -200,6 +210,11 @@ func (h *EChartsHandler) GetDynamoDBMetricsECharts(w http.ResponseWriter, r *htt
 	sort.Slice(dataPoints, func(i, j int) bool {
 		return dataPoints[i].Timestamp < dataPoints[j].Timestamp
 	})
+
+	// Ensure we return an empty array instead of null
+	if dataPoints == nil {
+		dataPoints = []EChartsDataPoint{}
+	}
 
 	response := EChartsResponse{
 		Data: dataPoints,

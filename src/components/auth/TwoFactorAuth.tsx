@@ -12,15 +12,13 @@ interface TwoFactorAuthProps {
 }
 
 export const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({ onSuccess, onCancel }) => {
-  const {
-    isLoading,
-    error,
-    biometricAvailable,
-    twoFactorChallenge,
-    completeTwoFactorAuth,
-    clearError,
-    signOut,
-  } = useAuthStore();
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const biometricAvailable = useAuthStore((state) => state.biometricAvailable);
+  const twoFactorChallenge = useAuthStore((state) => state.twoFactorChallenge);
+  const completeTwoFactorAuth = useAuthStore((state) => state.completeTwoFactorAuth);
+  const clearError = useAuthStore((state) => state.clearError);
+  const signOut = useAuthStore((state) => state.signOut);
 
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [backupCode, setBackupCode] = useState('');

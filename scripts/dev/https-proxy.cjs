@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 require('dotenv').config();
-const configPath = path.join(__dirname, '..', '.domain.config');
+const configPath = path.join(__dirname, '..', '..', '.domain.config');
 let config = {};
 
 if (fs.existsSync(configPath)) {

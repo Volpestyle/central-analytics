@@ -8,8 +8,7 @@ import * as echarts from "echarts";
 import { darkTheme } from "@/utils/chartTheme";
 import type { TimeRange, AggregatedMetrics } from "@/types/analytics";
 import type { EChartsOption } from "echarts";
-import { fetchMetrics } from "@lib/api-client";
-import type { MetricsResponse } from "@/types/api";
+import { useMetricsStore } from "@/stores/metricsStore";
 
 interface UseChartDataOptions<TData, TTransformed = TData> {
   appId: string;
@@ -35,55 +34,56 @@ export function useChartData<TData = unknown, TTransformed = TData>({
   transformData,
   enabled = true,
 }: UseChartDataOptions<TData, TTransformed>): UseChartDataReturn<TTransformed> {
-  const [data, setData] = useState<TTransformed | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [localData, setLocalData] = useState<TTransformed | null>(null);
 
-  const fetchData = useCallback(async () => {
-    if (!enabled) return;
+  const {
+    chartData,
+    isLoading: loadingState,
+    errors,
+    fetchChartData
+  } = useMetricsStore();
 
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Use aggregated metrics if available
-      if (aggregatedMetrics) {
-        const transformed = transformData
-          ? transformData(aggregatedMetrics)
-          : (aggregatedMetrics as unknown as TTransformed);
-        setData(transformed);
-        return;
-      }
-
-      const response = await fetchMetrics<TData>(endpoint, { appId, timeRange });
-
-      if (!response.data) {
-        throw new Error("No data available");
-      }
-
-      const transformed = transformData
-        ? transformData(response.data)
-        : response.data;
-      setData(transformed);
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "An error occurred";
-      setError(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [appId, timeRange, endpoint, aggregatedMetrics, transformData, enabled]);
+  const cacheKey = `${appId}-${endpoint}-${timeRange}`;
+  const isLoading = loadingState[cacheKey] || false;
+  const error = errors[cacheKey];
+  const cachedData = chartData[cacheKey];
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!enabled) return;
+
+    const loadData = async () => {
+      try {
+        const data = await fetchChartData(cacheKey, endpoint, { appId, timeRange });
+        if (data && transformData) {
+          setLocalData(transformData(data));
+        } else {
+          setLocalData(data);
+        }
+      } catch (err) {
+        // Error is already handled by the store
+      }
+    };
+
+    loadData();
+  }, [appId, timeRange, endpoint, enabled]);
 
   const refetch = useCallback(async () => {
-    await fetchData();
-  }, [fetchData]);
+    if (!enabled) return;
+
+    try {
+      const data = await fetchChartData(cacheKey, endpoint, { appId, timeRange });
+      if (data && transformData) {
+        setLocalData(transformData(data));
+      } else {
+        setLocalData(data);
+      }
+    } catch (err) {
+      // Error is already handled by the store
+    }
+  }, [cacheKey, endpoint, appId, timeRange, transformData, enabled]);
 
   return {
-    data,
+    data: localData,
     isLoading,
     error,
     refetch,

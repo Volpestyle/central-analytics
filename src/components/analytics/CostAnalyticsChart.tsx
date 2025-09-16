@@ -1,13 +1,12 @@
 /**
  * AWS Cost Analytics Chart Component
- * Refactored to use standardized patterns and utilities
+ * Rebuilt with proper data handling and dark theme styling
  */
 
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import type { EChartsOption } from 'echarts';
 import { ChartContainer } from '@components/charts/ChartContainer';
-import { Button } from '@components/ui/Button';
 import type {
   TimeRange,
   DailyCostData,
@@ -16,7 +15,15 @@ import type {
   AggregatedMetrics
 } from '@/types/analytics';
 import { useChartData } from '@/hooks/useChartData';
-import { formatNumber, formatPercentage, createLineChartOptions } from '@/utils/chartUtils';
+import {
+  formatNumber,
+  formatCurrency,
+  formatPercentage,
+  createLineChartOptions,
+  createEmptyStateOptions,
+  isEmptyData,
+  formatTimestamps
+} from '@/utils/chartUtils';
 import { darkTheme, getResponsiveOptions } from '@/utils/chartTheme';
 
 interface CostAnalyticsChartProps {
@@ -44,11 +51,45 @@ export const CostAnalyticsChart: React.FC<CostAnalyticsChartProps> = React.memo(
     timeRange,
     endpoint: `/api/apps/${appId}/metrics/costs`,
     aggregatedMetrics,
-    transformData: (response: any) => ({
-      dailyCosts: response.dailyCosts || [],
-      breakdown: response.breakdown || [],
-      projection: response.projection || null
-    })
+    transformData: (response: any) => {
+      if (!response) {
+        return { dailyCosts: [], breakdown: [], projection: null };
+      }
+
+      // Handle actual API response structure
+      let dailyCosts: DailyCostData[] = [];
+
+      if (response.data && Array.isArray(response.data)) {
+        dailyCosts = response.data.map((item: any) => ({
+          date: item.timestamp || item.date,
+          totalCost: item.value || item.totalCost || 0,
+          services: item.services || {}
+        }));
+      }
+
+      // Extract breakdown - could be in metadata or separate field
+      let breakdown: AWSCostBreakdown[] = [];
+      if (response.metadata?.services) {
+        breakdown = response.metadata.services;
+      } else if (response.breakdown) {
+        breakdown = response.breakdown;
+      } else if (aggregatedMetrics?.aws?.cost?.breakdown) {
+        breakdown = aggregatedMetrics.aws.cost.breakdown;
+      }
+
+      // Extract projection data
+      const projection: CostProjection | null = response.metadata?.projectedMonthly ? {
+        currentMonthEstimate: response.metadata.totalCost || 0,
+        nextMonthEstimate: response.metadata.projectedMonthly || 0,
+        confidence: response.metadata.confidence || 0.8
+      } : null;
+
+      return {
+        dailyCosts,
+        breakdown,
+        projection
+      };
+    }
   });
 
   // Process data for charts
@@ -85,118 +126,135 @@ export const CostAnalyticsChart: React.FC<CostAnalyticsChartProps> = React.memo(
 
   // Create chart options
   const chartOptions = useMemo<EChartsOption>(() => {
-    if (!chartData) return {};
+    if (!chartData || isEmptyData(chartData.sortedCosts)) {
+      return createEmptyStateOptions("No cost data available for this time period");
+    }
 
     if (detailed) {
-      return createDetailedCostOptions(chartData);
+      return createDetailedCostOptions(chartData, window.innerWidth);
     } else {
-      return createSimpleCostOptions(chartData);
+      return createSimpleCostOptions(chartData, window.innerWidth);
     }
   }, [chartData, detailed]);
 
   // Create breakdown chart options
   const breakdownOptions = useMemo<EChartsOption>(() => {
-    if (!chartData?.breakdown?.length) return {};
-    return createBreakdownOptions(chartData.breakdown);
+    if (!chartData?.breakdown?.length) {
+      return createEmptyStateOptions("No service breakdown data available");
+    }
+    return createBreakdownOptions(chartData.breakdown, window.innerWidth);
   }, [chartData]);
 
   return (
     <>
       <ChartContainer
         title={detailed ? "AWS Cost Analytics - Detailed" : "AWS Costs"}
-        subtitle={chartData ? `Total: $${chartData.totalCost.toFixed(2)} | Trend: ${chartData.trend >= 0 ? '+' : ''}${chartData.trend.toFixed(1)}%` : undefined}
+        subtitle={chartData ? `Total: ${formatCurrency(chartData.totalCost)} | Trend: ${chartData.trend >= 0 ? '+' : ''}${chartData.trend.toFixed(1)}%` : undefined}
         loading={isLoading}
         error={error}
         onRetry={refetch}
       >
-        {chartData && (
-          <div className="space-y-4">
-            {/* Cost Trend Chart */}
-            <ReactECharts
-              option={chartOptions}
-              style={{ height: '300px' }}
-              theme="dark"
-            />
-
-            {/* Cost Breakdown Chart */}
-            {detailed && chartData.breakdown.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-white mb-4">Service Breakdown</h4>
-                <ReactECharts
-                  option={breakdownOptions}
-                  style={{ height: '250px' }}
-                  theme="dark"
-                />
-              </div>
-            )}
-
-            {/* Cost Projection */}
-            {detailed && chartData.projection && (
-              <div className="bg-surface-dark p-4 rounded-lg mt-6">
-                <h4 className="text-lg font-semibold text-white mb-3">Monthly Projection</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <span className="text-text-secondary text-sm">Current Month</span>
-                    <p className="text-2xl font-bold text-white">
-                      ${chartData.projection.currentMonthEstimate.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-text-secondary text-sm">Next Month</span>
-                    <p className="text-2xl font-bold text-white">
-                      ${chartData.projection.nextMonthEstimate.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-text-secondary text-sm">Confidence</span>
-                    <p className="text-2xl font-bold text-blue-400">
-                      {(chartData.projection.confidence * 100).toFixed(0)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Top Cost Services Table */}
-            {detailed && chartData.breakdown.length > 0 && (
-              <div className="mt-6">
-                <h4 className="text-lg font-semibold text-white mb-3">Top Cost Services</h4>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-surface-light">
-                        <th className="text-left py-2 font-medium text-text-secondary">Service</th>
-                        <th className="text-right py-2 font-medium text-text-secondary">Cost</th>
-                        <th className="text-right py-2 font-medium text-text-secondary">% of Total</th>
-                        <th className="text-right py-2 font-medium text-text-secondary">Change</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {chartData.breakdown.slice(0, 5).map((service) => (
-                        <tr key={service.serviceName} className="border-b border-surface-light/50">
-                          <td className="py-2 text-text-primary font-medium">
-                            {formatServiceName(service.serviceName)}
-                          </td>
-                          <td className="text-right py-2 text-text-primary">
-                            ${service.cost.toFixed(2)}
-                          </td>
-                          <td className="text-right py-2 text-text-secondary">
-                            {((service.cost / chartData.totalCost) * 100).toFixed(1)}%
-                          </td>
-                          <td className="text-right py-2">
-                            <span className={service.change >= 0 ? 'text-red-400' : 'text-green-400'}>
-                              {service.change >= 0 ? '+' : ''}{service.change.toFixed(1)}%
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
+        {!isEmptyData(chartData?.sortedCosts) && (
+          <ReactECharts
+            option={chartOptions}
+            style={{ height: '300px' }}
+            theme="dark"
+            notMerge={true}
+            lazyUpdate={true}
+          />
         )}
+
+      {/* Cost Breakdown Chart */}
+      {detailed && chartData?.breakdown && chartData.breakdown.length > 0 && (
+        <ChartContainer
+          title="Service Breakdown"
+          loading={isLoading}
+          error={error}
+          className="mt-6"
+        >
+          <ReactECharts
+            option={breakdownOptions}
+            style={{ height: '250px' }}
+            theme="dark"
+            notMerge={true}
+            lazyUpdate={true}
+          />
+        </ChartContainer>
+      )}
+
+      {/* Cost Projection */}
+      {detailed && chartData?.projection && (
+        <div className="bg-[#0A0A0A] border border-[rgba(255,255,255,0.05)] p-6 rounded-xl mt-6">
+          <h4 className="text-lg font-semibold text-white mb-4">Monthly Projection</h4>
+          <div className="grid grid-cols-3 gap-6">
+            <div>
+              <span className="text-[rgba(255,255,255,0.5)] text-xs uppercase tracking-wider">Current Month</span>
+              <p className="text-2xl font-bold text-white mt-1">
+                {formatCurrency(chartData.projection.currentMonthEstimate)}
+              </p>
+            </div>
+            <div>
+              <span className="text-[rgba(255,255,255,0.5)] text-xs uppercase tracking-wider">Projected</span>
+              <p className="text-2xl font-bold text-[#FFD60A] mt-1">
+                {formatCurrency(chartData.projection.nextMonthEstimate)}
+              </p>
+            </div>
+            <div>
+              <span className="text-[rgba(255,255,255,0.5)] text-xs uppercase tracking-wider">Confidence</span>
+              <p className="text-2xl font-bold text-[#0A84FF] mt-1">
+                {(chartData.projection.confidence * 100).toFixed(0)}%
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Cost Services Table */}
+      {detailed && chartData?.breakdown && chartData.breakdown.length > 0 && (
+        <ChartContainer
+          title="Top Cost Services"
+          loading={isLoading}
+          error={error}
+          className="mt-6"
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[rgba(255,255,255,0.1)]">
+                  <th className="text-left py-3 font-medium text-[rgba(255,255,255,0.5)] text-xs">Service</th>
+                  <th className="text-right py-3 font-medium text-[rgba(255,255,255,0.5)] text-xs">Cost</th>
+                  <th className="text-right py-3 font-medium text-[rgba(255,255,255,0.5)] text-xs">% of Total</th>
+                  <th className="text-right py-3 font-medium text-[rgba(255,255,255,0.5)] text-xs">Change</th>
+                      </tr>
+              </thead>
+              <tbody>
+                {chartData.breakdown.slice(0, 5).map((service) => (
+                  <tr key={service.serviceName} className="border-b border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                    <td className="py-3 text-white font-medium text-xs">
+                      {formatServiceName(service.serviceName)}
+                    </td>
+                    <td className="text-right py-3 text-[#FFD60A] font-mono text-xs">
+                      {formatCurrency(service.cost)}
+                    </td>
+                    <td className="text-right py-3 text-[rgba(255,255,255,0.7)] font-mono text-xs">
+                      {((service.cost / chartData.totalCost) * 100).toFixed(1)}%
+                    </td>
+                    <td className="text-right py-3">
+                      {service.change !== undefined ? (
+                        <span className={`font-mono text-xs ${service.change >= 0 ? 'text-[#FF453A]' : 'text-[#32D74B]'}`}>
+                          {service.change >= 0 ? '+' : ''}{service.change.toFixed(1)}%
+                        </span>
+                      ) : (
+                        <span className="text-[rgba(255,255,255,0.3)] text-xs">-</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartContainer>
+      )}
       </ChartContainer>
     </>
   );
@@ -205,91 +263,137 @@ export const CostAnalyticsChart: React.FC<CostAnalyticsChartProps> = React.memo(
 CostAnalyticsChart.displayName = 'CostAnalyticsChart';
 
 // Helper functions
-function createDetailedCostOptions(chartData: any): EChartsOption {
-  const dates = chartData.sortedCosts.map((d: DailyCostData) =>
-    new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  );
+function createDetailedCostOptions(chartData: any, width: number): EChartsOption {
+  const dates = formatTimestamps(chartData.sortedCosts);
   const services = ['lambda', 'dynamoDB', 'apiGateway', 's3', 'cloudFront', 'other'] as const;
 
   return {
     ...darkTheme,
-    ...getResponsiveOptions(window.innerWidth),
+    ...getResponsiveOptions(width),
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'cross' },
+      axisPointer: {
+        type: 'cross',
+        crossStyle: {
+          color: 'rgba(255, 255, 255, 0.2)'
+        }
+      },
       formatter: (params: any) => {
         const date = params[0].axisValue;
-        let html = `${date}<br/>`;
+        let html = `<div style="font-size: 12px; line-height: 1.5;">`;
+        html += `<div style="color: rgba(255,255,255,0.5); margin-bottom: 8px; font-weight: 500;">${date}</div>`;
         let total = 0;
         params.forEach((param: any) => {
-          html += `${param.marker} ${param.seriesName}: $${param.value.toFixed(2)}<br/>`;
+          html += `<div style="display: flex; align-items: center; gap: 8px;">`;
+          html += `${param.marker} <span style="color: rgba(255,255,255,0.7);">${param.seriesName}:</span>`;
+          html += `<span style="color: #FFD60A; margin-left: auto;">${formatCurrency(param.value)}</span></div>`;
           total += param.value;
         });
-        html += `<strong>Total: $${total.toFixed(2)}</strong>`;
+        html += `<div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px; padding-top: 8px;">`;
+        html += `<strong style="color: #fff;">Total: ${formatCurrency(total)}</strong></div></div>`;
         return html;
       }
     },
     legend: {
       data: services.map(formatServiceName),
-      textStyle: { color: '#999' },
+      textStyle: { color: 'rgba(255, 255, 255, 0.7)' },
+      icon: 'roundRect',
       bottom: 0
     },
     xAxis: {
       type: 'category',
       data: dates,
-      axisLabel: { rotate: dates.length > 15 ? 45 : 0 }
+      axisLine: {
+        lineStyle: { color: 'rgba(255, 255, 255, 0.1)' }
+      },
+      axisLabel: {
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontSize: 11,
+        rotate: dates.length > 15 ? 45 : 0
+      }
     },
     yAxis: {
       type: 'value',
-      axisLabel: { formatter: (value: number) => `$${value}` }
+      name: 'Cost ($)',
+      nameTextStyle: {
+        color: 'rgba(255, 255, 255, 0.7)',
+        fontSize: 12
+      },
+      axisLabel: {
+        color: 'rgba(255, 255, 255, 0.5)',
+        fontSize: 11,
+        formatter: (value: number) => formatCurrency(value)
+      },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255, 255, 255, 0.05)',
+          type: 'dashed'
+        }
+      }
     },
-    series: services.map(service => ({
+    series: services.map((service, index) => ({
       name: formatServiceName(service),
       type: 'line',
       stack: 'total',
-      areaStyle: {},
+      areaStyle: {
+        opacity: 0.1
+      },
       emphasis: { focus: 'series' },
       data: chartData.sortedCosts.map((day: any) => day.services?.[service] || 0),
-      smooth: true
+      smooth: true,
+      lineStyle: {
+        width: 2
+      },
+      itemStyle: {
+        color: getServiceColor(service)
+      }
     }))
   };
 }
 
-function createSimpleCostOptions(chartData: any): EChartsOption {
-  const dates = chartData.sortedCosts.map((d: DailyCostData) =>
-    new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  );
+function createSimpleCostOptions(chartData: any, width: number): EChartsOption {
+  const dates = formatTimestamps(chartData.sortedCosts);
   const costs = chartData.sortedCosts.map((d: DailyCostData) => d.totalCost);
 
   return createLineChartOptions({
     data: costs,
     timestamps: dates,
-    title: 'Daily Costs',
     smooth: true,
     colors: ['#FFD60A'],
-    width: window.innerWidth,
+    width,
     yAxisLabel: 'Cost ($)',
-    showArea: true
+    showArea: true,
+    showAnimation: true
   });
 }
 
-function createBreakdownOptions(breakdown: AWSCostBreakdown[]): EChartsOption {
+function createBreakdownOptions(breakdown: AWSCostBreakdown[], width: number): EChartsOption {
   return {
     ...darkTheme,
-    ...getResponsiveOptions(window.innerWidth),
+    ...getResponsiveOptions(width),
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
       formatter: (params: any) => {
-        return `${params.name}: $${params.value.toFixed(2)} (${params.percent}%)`;
+        return `
+          <div style="font-size: 12px; line-height: 1.5;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              ${params.marker}
+              <span style="color: #fff;">${params.name}: <strong style="color: #FFD60A;">${formatCurrency(params.value)}</strong> (${params.percent}%)</span>
+            </div>
+          </div>
+        `;
       }
     },
     series: [{
       type: 'pie',
       radius: ['40%', '70%'],
+      center: ['50%', '50%'],
       avoidLabelOverlap: false,
       itemStyle: {
-        borderRadius: 10,
-        borderColor: '#1a1a1a',
+        borderRadius: 8,
+        borderColor: '#000000',
         borderWidth: 2
       },
       label: {
@@ -299,9 +403,14 @@ function createBreakdownOptions(breakdown: AWSCostBreakdown[]): EChartsOption {
       emphasis: {
         label: {
           show: true,
-          fontSize: '16',
+          fontSize: '14',
           fontWeight: 'bold',
-          formatter: (params: any) => `${params.name}\n$${params.value.toFixed(2)}`
+          color: '#FFFFFF',
+          formatter: (params: any) => `${params.name}\n${formatCurrency(params.value)}`
+        },
+        itemStyle: {
+          shadowBlur: 20,
+          shadowColor: 'rgba(0, 0, 0, 0.5)'
         }
       },
       labelLine: { show: false },
@@ -309,7 +418,10 @@ function createBreakdownOptions(breakdown: AWSCostBreakdown[]): EChartsOption {
         value: service.cost,
         name: formatServiceName(service.serviceName),
         itemStyle: { color: getServiceColor(service.serviceName) }
-      }))
+      })),
+      animationType: 'scale',
+      animationEasing: 'elasticOut',
+      animationDuration: 1000
     }]
   };
 }

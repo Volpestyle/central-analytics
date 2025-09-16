@@ -2,12 +2,12 @@
  * User Engagement Metrics Chart Component
  */
 
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import * as echarts from 'echarts';
 import { darkTheme, getResponsiveOptions } from '@/utils/chartTheme';
 import { ChartContainer } from '@components/charts/ChartContainer';
 import type { TimeRange, UserEngagement, AggregatedMetrics } from '@/types/analytics';
-import { fetchMetrics as fetchMetricsApi } from '@lib/api-client';
+import { useMetricsStore } from '@/stores/metricsStore';
 
 interface EngagementMetricsProps {
   appId: string;
@@ -19,27 +19,48 @@ interface EngagementMetricsProps {
 export const EngagementMetrics: React.FC<EngagementMetricsProps> = React.memo(({ appId, timeRange, detailed = false, metrics: aggregatedMetrics }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [engagement, setEngagement] = useState<UserEngagement[]>([]);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  // Use Zustand store for data fetching
+  const {
+    chartData: storeChartData,
+    isLoading: loadingState,
+    errors,
+    fetchChartData
+  } = useMetricsStore();
+
+  const cacheKey = `${appId}-engagement-${timeRange}`;
+  const isLoading = loadingState[cacheKey] || false;
+  const error = errors[cacheKey] || apiError;
 
   // Fetch engagement metrics
-  const fetchMetrics = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchMetrics = async () => {
     try {
-      const response = await fetchMetricsApi(`/api/apps/${appId}/metrics/appstore/engagement`, { timeRange });
-      setEngagement(response.data || []);
+      const response = await fetchChartData(
+        cacheKey,
+        `/api/apps/${appId}/metrics/appstore/engagement`,
+        { timeRange }
+      );
+
+      // Check if the API returned an error in metadata
+      if (response?.metadata?.error) {
+        // Set empty data and store the error message
+        setEngagement([]);
+        setApiError(response.metadata.error);
+      } else {
+        setEngagement(response?.data || []);
+        setApiError(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
+      // Error is handled by the store
+      setEngagement([]);
     }
-  }, [appId, timeRange]);
+  };
 
   useEffect(() => {
     fetchMetrics();
-  }, [fetchMetrics]);
+  }, [appId, timeRange]);
 
   // Process data for charts
   const chartData = useMemo(() => {
@@ -410,8 +431,7 @@ export const EngagementMetrics: React.FC<EngagementMetricsProps> = React.memo(({
 
   if (error) {
     return (
-      <ChartContainer title="Engagement Metrics" error>
-        <div className="text-red-400 text-sm">{error}</div>
+      <ChartContainer title="Engagement Metrics" error={error} onRetry={fetchMetrics}>
       </ChartContainer>
     );
   }
@@ -420,6 +440,7 @@ export const EngagementMetrics: React.FC<EngagementMetricsProps> = React.memo(({
     <ChartContainer
       title={detailed ? "User Engagement Analytics" : "Engagement"}
       loading={isLoading}
+      onRetry={fetchMetrics}
     >
       <div ref={chartRef} className="w-full h-80" />
 

@@ -8,12 +8,12 @@ import { LambdaMetricsChart } from './LambdaMetricsChart';
 import { CostBreakdownChart } from './CostBreakdownChart';
 import { RevenueChart } from './RevenueChart';
 import { DownloadsChart } from './DownloadsChart';
-import { appleAuth } from '@lib/apple-auth';
 import { ApiGatewayChart } from './ApiGatewayChart';
 import { DynamoDBChart } from './DynamoDBChart';
 import { CostAnalyticsChart } from './CostAnalyticsChart';
 import { EngagementMetrics } from './EngagementMetrics';
-import type { TimeRange, AggregatedMetrics } from '@/types/analytics';
+import { useMetricsStore } from '@/stores/metricsStore';
+import type { TimeRange } from '@/types/analytics';
 
 interface AppAnalyticsDashboardProps {
   appId: string;
@@ -21,44 +21,33 @@ interface AppAnalyticsDashboardProps {
 
 export const AppAnalyticsDashboard: React.FC<AppAnalyticsDashboardProps> = ({ appId }) => {
   const [timeRange, setTimeRange] = useState<TimeRange>('24h');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [metrics, setMetrics] = useState<AggregatedMetrics | null>(null);
   const [selectedView, setSelectedView] = useState<'overview' | 'aws' | 'appstore'>('overview');
 
-  // Fetch aggregated metrics
-  const fetchMetrics = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const token = appleAuth.getAccessToken();
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json'
-      };
+  // Use Zustand store
+  const {
+    metrics: allMetrics,
+    isLoading: loadingState,
+    errors,
+    fetchAggregatedMetrics,
+    clearCache
+  } = useMetricsStore();
 
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+  const metricsKey = `${appId}-${timeRange}`;
+  const metrics = allMetrics[metricsKey];
+  const isLoading = loadingState[metricsKey] || false;
+  const error = errors[metricsKey];
 
-      const response = await fetch(`/api/apps/${appId}/metrics/aggregated?timeRange=${timeRange}`, {
-        headers
-      });
-      if (!response.ok) throw new Error('Failed to fetch metrics');
-      const data = await response.json();
-      setMetrics(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [appId, timeRange]);
-
+  // Fetch metrics on mount and when dependencies change
   useEffect(() => {
-    fetchMetrics();
-    // Set up real-time updates
-    const interval = setInterval(fetchMetrics, 60000); // Refresh every minute
+    fetchAggregatedMetrics(appId, timeRange);
+
+    // Set up periodic refresh
+    const interval = setInterval(() => {
+      fetchAggregatedMetrics(appId, timeRange);
+    }, 60000); // Refresh every minute
+
     return () => clearInterval(interval);
-  }, [fetchMetrics]);
+  }, [appId, timeRange]);
 
   // Calculate KPI values
   const kpiValues = useMemo(() => {
@@ -127,7 +116,7 @@ export const AppAnalyticsDashboard: React.FC<AppAnalyticsDashboardProps> = ({ ap
             <h3 className="text-red-400 text-lg font-medium mb-2">Error Loading Dashboard</h3>
             <p className="text-red-300">{error}</p>
             <button
-              onClick={fetchMetrics}
+              onClick={() => fetchAggregatedMetrics(appId, timeRange)}
               className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
             >
               Retry
@@ -220,7 +209,10 @@ export const AppAnalyticsDashboard: React.FC<AppAnalyticsDashboardProps> = ({ ap
 
               {/* Refresh Button */}
               <button
-                onClick={fetchMetrics}
+                onClick={() => {
+                  clearCache(appId);
+                  fetchAggregatedMetrics(appId, timeRange);
+                }}
                 className="p-2 rounded-lg hover:bg-surface-light transition-colors text-text-secondary hover:text-primary"
                 disabled={isLoading}
               >

@@ -37,7 +37,7 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
   detailed = false,
   metrics,
 }) => {
-  const { data, isLoading, error } = useChartData({
+  const { data, isLoading, error, refetch } = useChartData({
     appId,
     timeRange,
     endpoint: `/api/apps/${appId}/metrics/aws/cost/breakdown`,
@@ -113,6 +113,7 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
         title="AWS Cost Analysis"
         loading={isLoading}
         error={error}
+        onRetry={refetch}
         controls={
           !error && data?.breakdown?.length > 0 && (
             <div className="flex gap-2">
@@ -166,7 +167,7 @@ export const CostBreakdownChart: React.FC<CostBreakdownChartProps> = ({
       </ChartContainer>
 
       {detailed && !error && data?.breakdown?.length > 0 && (
-        <ChartContainer title="Service Cost Details" loading={isLoading} error={error}>
+        <ChartContainer title="Service Cost Details" loading={isLoading} error={error} onRetry={refetch}>
           <div className="space-y-3">
             {data.breakdown.map((service) => (
               <div key={service.serviceName || service.service} className="bg-surface-light rounded-lg p-3">

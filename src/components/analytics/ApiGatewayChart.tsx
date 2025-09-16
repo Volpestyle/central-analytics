@@ -20,6 +20,8 @@ import {
   formatTimestamps,
   formatNumber,
   createBarChartOptions,
+  createEmptyStateOptions,
+  isEmptyData,
 } from "@/utils/chartUtils";
 import { darkTheme, getResponsiveOptions } from "@/utils/chartTheme";
 
@@ -45,15 +47,19 @@ export const ApiGatewayChart: React.FC<ApiGatewayChartProps> = React.memo(
 
     // Build chart options using shared utilities
     const chartOptions = useMemo<EChartsOption>(() => {
-      if (!data?.timeSeries?.length) return {};
+      if (!data?.timeSeries?.length && !data?.endpoints?.length) {
+        return createEmptyStateOptions("No API Gateway data available for this time period");
+      }
 
-      if (detailed) {
+      if (detailed && data.timeSeries?.length > 0) {
         // Detailed view - use raw ECharts for complex charts
         return createDetailedOptions(data.timeSeries, data.endpoints);
-      } else {
+      } else if (data.endpoints?.length > 0) {
         // Simple overview - use utilities
         return createSimpleOptions(data.endpoints, window.innerWidth);
       }
+
+      return createEmptyStateOptions("No API Gateway metrics available");
     }, [data, detailed]);
 
     return (

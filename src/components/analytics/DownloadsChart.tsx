@@ -36,7 +36,7 @@ export const DownloadsChart: React.FC<DownloadsChartProps> = ({
   detailed = false,
   metrics,
 }) => {
-  const { data, isLoading, error } = useChartData({
+  const { data, isLoading, error, refetch } = useChartData({
     appId,
     timeRange,
     endpoint: `/api/apps/${appId}/metrics/appstore/downloads`,
@@ -118,6 +118,7 @@ export const DownloadsChart: React.FC<DownloadsChartProps> = ({
         title="Download Analytics"
         loading={isLoading}
         error={error}
+        onRetry={refetch}
         controls={
           !error &&
           data?.downloads?.length > 0 && (
@@ -154,6 +155,7 @@ export const DownloadsChart: React.FC<DownloadsChartProps> = ({
             title="Download Summary"
             loading={isLoading}
             error={error}
+            onRetry={refetch}
           >
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
               <div className="bg-surface-light rounded-lg p-3">
@@ -204,6 +206,7 @@ export const DownloadsChart: React.FC<DownloadsChartProps> = ({
               title="Top Countries"
               loading={isLoading}
               error={error}
+              onRetry={refetch}
             >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

@@ -11,14 +11,12 @@ interface BiometricLoginProps {
 }
 
 export const BiometricLogin: React.FC<BiometricLoginProps> = ({ onSuccess }) => {
-  const {
-    isLoading,
-    error,
-    biometricAvailable,
-    signInWithApple,
-    checkBiometricAvailability,
-    clearError,
-  } = useAuthStore();
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const biometricAvailable = useAuthStore((state) => state.biometricAvailable);
+  const signInWithApple = useAuthStore((state) => state.signInWithApple);
+  const checkBiometricAvailability = useAuthStore((state) => state.checkBiometricAvailability);
+  const clearError = useAuthStore((state) => state.clearError);
 
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [isPWA, setIsPWA] = useState(false);

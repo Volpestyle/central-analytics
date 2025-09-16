@@ -9,7 +9,8 @@ import { TwoFactorAuth } from './auth/TwoFactorAuth';
 import { useAuthStore } from '@stores/authStore';
 
 export const AuthApp: React.FC = () => {
-  const { isAuthenticated, twoFactorRequired } = useAuthStore();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const twoFactorRequired = useAuthStore((state) => state.twoFactorRequired);
 
   useEffect(() => {
     // Check authentication status on mount
@@ -44,6 +45,7 @@ export const AuthApp: React.FC = () => {
     <BiometricLogin
       onSuccess={() => {
         // Check if 2FA is required after login
+        // Using getState() is correct here - it's not a hook
         const state = useAuthStore.getState();
         if (!state.twoFactorRequired) {
           window.location.href = '/dashboard';

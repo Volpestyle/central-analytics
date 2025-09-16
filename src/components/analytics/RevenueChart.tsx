@@ -35,7 +35,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
   detailed = false,
   metrics,
 }) => {
-  const { data, isLoading, error } = useChartData({
+  const { data, isLoading, error, refetch } = useChartData({
     appId,
     timeRange,
     endpoint: `/api/apps/${appId}/metrics/appstore/revenue`,
@@ -99,6 +99,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
         title="Revenue Analytics"
         loading={isLoading}
         error={error}
+        onRetry={refetch}
         controls={
           !error &&
           data?.revenue?.length > 0 && (
@@ -134,6 +135,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
           title="Revenue Summary"
           loading={isLoading}
           error={error}
+          onRetry={refetch}
         >
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             <div className="bg-surface-light rounded-lg p-3">

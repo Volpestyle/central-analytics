@@ -20,6 +20,8 @@ import {
   createLineChartOptions,
   createBarChartOptions,
   createPieChartOptions,
+  createEmptyStateOptions,
+  isEmptyData,
 } from "@/utils/chartUtils";
 import { darkTheme, getResponsiveOptions } from "@/utils/chartTheme";
 
@@ -32,7 +34,7 @@ interface DynamoDBChartProps {
 
 export const DynamoDBChart: React.FC<DynamoDBChartProps> = React.memo(
   ({ appId, timeRange, detailed = false, metrics: aggregatedMetrics }) => {
-    const { data, isLoading, error } = useChartData({
+    const { data, isLoading, error, refetch } = useChartData({
       appId,
       timeRange,
       endpoint: `/api/apps/${appId}/metrics/dynamodb`,
@@ -44,7 +46,9 @@ export const DynamoDBChart: React.FC<DynamoDBChartProps> = React.memo(
     });
 
     const chartOptions = useMemo<EChartsOption>(() => {
-      if (!data?.timeSeries?.length && !data?.tables?.length) return {};
+      if (!data?.timeSeries?.length && !data?.tables?.length) {
+        return createEmptyStateOptions("No DynamoDB data available for this time period");
+      }
 
       if (detailed && data.timeSeries?.length > 0) {
         return createDetailedTimeSeriesChart(data.timeSeries, window.innerWidth);
@@ -56,13 +60,13 @@ export const DynamoDBChart: React.FC<DynamoDBChartProps> = React.memo(
             name: table.tableName.replace("ilikeyacut-", "").replace("-dev", ""),
             value: table.readCapacityUsed + table.writeCapacityUsed,
           })),
-          title: "DynamoDB Tables Capacity",
+          title: undefined, // Title handled by ChartContainer
           colors: ["#0A84FF", "#32D74B", "#FFD60A", "#FF453A", "#BF5AF2"],
           width: window.innerWidth,
         });
       }
 
-      return {};
+      return createEmptyStateOptions("No DynamoDB metrics available");
     }, [data, detailed]);
 
     return (
@@ -70,6 +74,7 @@ export const DynamoDBChart: React.FC<DynamoDBChartProps> = React.memo(
         title={detailed ? "DynamoDB Detailed Metrics" : "DynamoDB"}
         loading={isLoading}
         error={error}
+        onRetry={refetch}
       >
         {!error &&
           (data?.timeSeries?.length > 0 || data?.tables?.length > 0) && (

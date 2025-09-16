@@ -28,4 +28,6 @@ pnpm-debug.log*
 *.crt
 *.key
 *.p12
-certs/
+
+# exclude root certs directory only
+/certs/

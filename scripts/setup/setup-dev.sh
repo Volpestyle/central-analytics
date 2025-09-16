@@ -7,12 +7,12 @@ echo "======================================"
 echo ""
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 cd "$PROJECT_ROOT"
 
 # Source shared configuration
-source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/../utils/config.sh"
 
 NEEDS_UPDATE=false
 FORCE_UPDATE=false
@@ -44,9 +44,9 @@ echo "🌐 Step 2: Domain configuration..."
 echo "----------------------------------"
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "No domain configuration found. Running domain setup..."
-    if [ -f "scripts/configure-domain.sh" ]; then
-        ensure_executable "scripts/configure-domain.sh"
-        ./scripts/configure-domain.sh
+    if [ -f "scripts/utils/configure-domain.sh" ]; then
+        ensure_executable "scripts/utils/configure-domain.sh"
+        ./scripts/utils/configure-domain.sh
     else
         echo "Creating default configuration..."
         BASE_DOMAIN="$DEFAULT_BASE_DOMAIN"
@@ -80,9 +80,9 @@ KEY_FILE="$CERT_DIR/key.pem"
 
 if [ "$FORCE_UPDATE" = true ] || [ ! -f "$CERT_FILE" ] || [ ! -f "$KEY_FILE" ]; then
     echo "Generating certificates..."
-    if [ -f "scripts/generate-certs.sh" ]; then
-        ensure_executable "scripts/generate-certs.sh"
-        ./scripts/generate-certs.sh
+    if [ -f "scripts/certs/generate-certs.sh" ]; then
+        ensure_executable "scripts/certs/generate-certs.sh"
+        ./scripts/certs/generate-certs.sh
     else
         echo "⚠️  Warning: Certificate generation script not found"
     fi
@@ -93,9 +93,9 @@ else
             echo "✅ Certificates valid (expires in >24 hours)"
         else
             echo "⚠️  Certificates expired or expiring soon. Regenerating..."
-            if [ -f "scripts/generate-certs.sh" ]; then
-                ensure_executable "scripts/generate-certs.sh"
-                ./scripts/generate-certs.sh
+            if [ -f "scripts/certs/generate-certs.sh" ]; then
+                ensure_executable "scripts/certs/generate-certs.sh"
+                ./scripts/certs/generate-certs.sh
             fi
         fi
     else
@@ -214,17 +214,17 @@ fi
 echo ""
 echo "🔧 Step 7: HTTPS proxy script..."
 echo "--------------------------------"
-if [ ! -f "scripts/https-proxy.js" ]; then
+if [ ! -f "scripts/dev/https-proxy.cjs" ]; then
     echo "Creating HTTPS proxy script..."
     load_config
-    cat > scripts/https-proxy.js << 'EOF'
+    cat > scripts/dev/https-proxy.cjs << 'EOF'
 const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
 require('dotenv').config();
-const configPath = path.join(__dirname, '..', '.domain.config');
+const configPath = path.join(__dirname, '..', '..', '.domain.config');
 let config = {};
 
 if (fs.existsSync(configPath)) {
@@ -245,8 +245,8 @@ const BACKEND_HTTP_PORT = parseInt(config.BACKEND_HTTP_PORT || '8080');
 const BACKEND_HTTPS_PORT = parseInt(config.BACKEND_HTTPS_PORT || '3000');
 
 const options = {
-  key: fs.readFileSync(path.join(__dirname, '..', 'certs', 'key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, '..', 'certs', 'cert.pem'))
+  key: fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'cert.pem'))
 };
 
 const server = https.createServer(options, (req, res) => {
@@ -285,7 +285,7 @@ server.listen(BACKEND_HTTPS_PORT, () => {
   console.log(`   Backend (/api) -> http://localhost:${BACKEND_HTTP_PORT}`);
 });
 EOF
-    chmod +x scripts/https-proxy.js
+    chmod +x scripts/dev/https-proxy.cjs
     echo "✅ Created HTTPS proxy script"
 else
     echo "✅ HTTPS proxy script exists"

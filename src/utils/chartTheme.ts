@@ -1,394 +1,338 @@
+/**
+ * ECharts Dark Theme Configuration
+ * Following Tesla/Apple-inspired design principles with true black backgrounds
+ */
+
 export const darkTheme = {
+  // Color palette matching design specification
   color: ['#0A84FF', '#32D74B', '#FFD60A', '#FF453A', '#BF5AF2', '#64D2FF', '#FF9F0A', '#5E5CE6'],
   backgroundColor: 'transparent',
+
+  // Text styles with proper hierarchy
   textStyle: {
-    color: '#ffffff'
+    color: '#FFFFFF',
+    fontFamily: "'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
   },
+
   title: {
     textStyle: {
-      color: '#ffffff'
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontWeight: 500
     },
     subtextStyle: {
-      color: '#999999'
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontSize: 12
     }
   },
+
+  // Line chart configuration with smooth animations
   line: {
     itemStyle: {
-      borderWidth: 1
+      borderWidth: 2
     },
     lineStyle: {
-      width: 2
+      width: 2.5
     },
-    symbolSize: 4,
-    symbol: 'circle',
-    smooth: true
-  },
-  radar: {
-    itemStyle: {
-      borderWidth: 1
-    },
-    lineStyle: {
-      width: 2
-    },
-    symbolSize: 4,
-    symbol: 'circle',
-    smooth: true
-  },
-  bar: {
-    itemStyle: {
-      barBorderWidth: 0,
-      barBorderColor: '#cccccc'
-    }
-  },
-  pie: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  scatter: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  boxplot: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  parallel: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  sankey: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  funnel: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  gauge: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    }
-  },
-  candlestick: {
-    itemStyle: {
-      color: '#32D74B',
-      color0: '#FF453A',
-      borderColor: '#32D74B',
-      borderColor0: '#FF453A',
-      borderWidth: 1
-    }
-  },
-  graph: {
-    itemStyle: {
-      borderWidth: 0,
-      borderColor: '#cccccc'
-    },
-    lineStyle: {
-      width: 1,
-      color: '#aaaaaa'
-    },
-    symbolSize: 4,
+    symbolSize: 6,
     symbol: 'circle',
     smooth: true,
-    color: ['#0A84FF', '#32D74B', '#FFD60A', '#FF453A', '#BF5AF2', '#64D2FF', '#FF9F0A', '#5E5CE6'],
-    label: {
-      color: '#ffffff'
-    }
+    animationDuration: 1000,
+    animationEasing: 'cubicInOut'
   },
-  map: {
+
+  // Bar chart configuration
+  bar: {
     itemStyle: {
-      areaColor: '#1a1a1a',
-      borderColor: '#444444',
-      borderWidth: 0.5
+      borderRadius: [4, 4, 0, 0],
+      barBorderWidth: 0
     },
-    label: {
-      color: '#ffffff'
-    },
-    emphasis: {
-      itemStyle: {
-        areaColor: 'rgba(10, 132, 255, 0.25)',
-        borderColor: '#0A84FF',
-        borderWidth: 1
-      },
-      label: {
-        color: '#0A84FF'
-      }
-    }
+    animationDuration: 800,
+    animationEasing: 'elasticOut'
   },
-  geo: {
+
+  // Pie chart configuration
+  pie: {
     itemStyle: {
-      areaColor: '#1a1a1a',
-      borderColor: '#444444',
-      borderWidth: 0.5
+      borderWidth: 2,
+      borderColor: '#000000',
+      borderRadius: 8
     },
-    label: {
-      color: '#ffffff'
-    },
-    emphasis: {
-      itemStyle: {
-        areaColor: 'rgba(10, 132, 255, 0.25)',
-        borderColor: '#0A84FF',
-        borderWidth: 1
-      },
-      label: {
-        color: '#0A84FF'
-      }
-    }
+    animationDuration: 1000,
+    animationEasing: 'cubicInOut'
   },
+
+  // Category axis (X-axis)
   categoryAxis: {
     axisLine: {
       show: true,
       lineStyle: {
-        color: '#333333'
+        color: 'rgba(255, 255, 255, 0.1)'
       }
     },
     axisTick: {
-      show: true,
-      lineStyle: {
-        color: '#333333'
-      }
+      show: false
     },
     axisLabel: {
       show: true,
-      color: '#999999'
+      color: 'rgba(255, 255, 255, 0.5)',
+      fontSize: 11,
+      fontFamily: "'Geist Mono', 'SF Mono', Monaco, monospace"
     },
     splitLine: {
-      show: false,
-      lineStyle: {
-        color: ['#1a1a1a']
-      }
+      show: false
     },
     splitArea: {
-      show: false,
-      areaStyle: {
-        color: ['rgba(255,255,255,0.01)', 'rgba(255,255,255,0.02)']
-      }
+      show: false
     }
   },
+
+  // Value axis (Y-axis)
   valueAxis: {
     axisLine: {
-      show: false,
-      lineStyle: {
-        color: '#333333'
-      }
+      show: false
     },
     axisTick: {
-      show: false,
-      lineStyle: {
-        color: '#333333'
-      }
+      show: false
     },
     axisLabel: {
       show: true,
-      color: '#999999'
+      color: 'rgba(255, 255, 255, 0.5)',
+      fontSize: 11,
+      fontFamily: "'Geist Mono', 'SF Mono', Monaco, monospace"
     },
     splitLine: {
       show: true,
       lineStyle: {
-        color: ['rgba(255,255,255,0.05)']
+        color: 'rgba(255, 255, 255, 0.05)',
+        type: 'dashed'
       }
     },
     splitArea: {
-      show: false,
-      areaStyle: {
-        color: ['rgba(255,255,255,0.01)', 'rgba(255,255,255,0.02)']
-      }
+      show: false
+    },
+    nameTextStyle: {
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontSize: 12
     }
   },
-  logAxis: {
-    axisLine: {
-      show: false,
-      lineStyle: {
-        color: '#333333'
-      }
-    },
-    axisTick: {
-      show: false,
-      lineStyle: {
-        color: '#333333'
-      }
-    },
-    axisLabel: {
-      show: true,
-      color: '#999999'
-    },
-    splitLine: {
-      show: true,
-      lineStyle: {
-        color: ['rgba(255,255,255,0.05)']
-      }
-    },
-    splitArea: {
-      show: false,
-      areaStyle: {
-        color: ['rgba(255,255,255,0.01)', 'rgba(255,255,255,0.02)']
-      }
-    }
-  },
+
+  // Time axis configuration
   timeAxis: {
     axisLine: {
       show: true,
       lineStyle: {
-        color: '#333333'
+        color: 'rgba(255, 255, 255, 0.1)'
       }
     },
     axisTick: {
-      show: true,
-      lineStyle: {
-        color: '#333333'
-      }
+      show: false
     },
     axisLabel: {
       show: true,
-      color: '#999999'
+      color: 'rgba(255, 255, 255, 0.5)',
+      fontSize: 11
     },
     splitLine: {
-      show: false,
-      lineStyle: {
-        color: ['#1a1a1a']
-      }
+      show: false
+    }
+  },
+
+  // Legend configuration
+  legend: {
+    textStyle: {
+      color: 'rgba(255, 255, 255, 0.7)',
+      fontSize: 12
     },
-    splitArea: {
-      show: false,
-      areaStyle: {
-        color: ['rgba(255,255,255,0.01)', 'rgba(255,255,255,0.02)']
+    pageTextStyle: {
+      color: 'rgba(255, 255, 255, 0.7)'
+    },
+    icon: 'roundRect',
+    itemWidth: 16,
+    itemHeight: 8,
+    itemGap: 16
+  },
+
+  // Tooltip configuration with glassmorphism effect
+  tooltip: {
+    backgroundColor: 'rgba(10, 10, 10, 0.95)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: [12, 16],
+    textStyle: {
+      color: '#FFFFFF',
+      fontSize: 12
+    },
+    extraCssText: 'backdrop-filter: blur(10px); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);',
+    axisPointer: {
+      lineStyle: {
+        color: 'rgba(255, 255, 255, 0.2)',
+        width: 1,
+        type: 'dashed'
+      },
+      crossStyle: {
+        color: 'rgba(255, 255, 255, 0.2)',
+        width: 1,
+        type: 'dashed'
+      },
+      shadowStyle: {
+        color: 'rgba(10, 132, 255, 0.1)'
       }
     }
   },
+
+  // DataZoom configuration
+  dataZoom: {
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    dataBackgroundColor: 'rgba(255, 255, 255, 0.05)',
+    fillerColor: 'rgba(10, 132, 255, 0.15)',
+    handleColor: '#0A84FF',
+    handleSize: '100%',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    textStyle: {
+      color: 'rgba(255, 255, 255, 0.5)'
+    }
+  },
+
+  // Visual map configuration
+  visualMap: {
+    textStyle: {
+      color: 'rgba(255, 255, 255, 0.7)'
+    },
+    inRange: {
+      color: ['#0A84FF', '#32D74B', '#FFD60A', '#FF453A']
+    }
+  },
+
+  // Toolbox configuration
   toolbox: {
     iconStyle: {
-      borderColor: '#999999'
+      borderColor: 'rgba(255, 255, 255, 0.5)'
     },
     emphasis: {
       iconStyle: {
-        borderColor: '#ffffff'
+        borderColor: '#FFFFFF'
       }
     }
   },
-  legend: {
-    textStyle: {
-      color: '#999999'
-    }
-  },
-  tooltip: {
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    borderColor: '#333333',
-    borderWidth: 1,
-    textStyle: {
-      color: '#ffffff'
-    },
-    axisPointer: {
-      lineStyle: {
-        color: '#555555',
-        width: 1
-      },
-      crossStyle: {
-        color: '#555555',
-        width: 1
-      }
-    }
-  },
-  timeline: {
-    lineStyle: {
-      color: '#333333',
-      width: 1
-    },
-    itemStyle: {
-      color: '#999999',
-      borderWidth: 1
-    },
-    controlStyle: {
-      color: '#999999',
-      borderColor: '#999999',
-      borderWidth: 0.5
-    },
-    checkpointStyle: {
-      color: '#0A84FF',
-      borderColor: '#0A84FF'
-    },
-    label: {
-      color: '#999999'
-    },
-    emphasis: {
-      itemStyle: {
-        color: '#ffffff'
-      },
-      controlStyle: {
-        color: '#999999',
-        borderColor: '#999999',
-        borderWidth: 0.5
-      },
-      label: {
-        color: '#999999'
-      }
-    }
-  },
-  visualMap: {
-    color: ['#0A84FF', '#32D74B', '#FFD60A', '#FF453A']
-  },
-  dataZoom: {
-    backgroundColor: 'rgba(255,255,255,0)',
-    dataBackgroundColor: 'rgba(255,255,255,0.05)',
-    fillerColor: 'rgba(10,132,255,0.1)',
-    handleColor: '#0A84FF',
-    handleSize: '100%',
-    textStyle: {
-      color: '#999999'
-    }
-  },
+
+  // Mark point and mark line
   markPoint: {
     label: {
-      color: '#ffffff'
+      color: '#FFFFFF'
     },
     emphasis: {
       label: {
-        color: '#ffffff'
+        color: '#FFFFFF'
       }
     }
+  },
+
+  // Grid configuration for better spacing
+  grid: {
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   }
 };
 
+/**
+ * Get responsive options based on viewport width
+ */
 export const getResponsiveOptions = (width: number) => {
   const isMobile = width < 768;
   const isTablet = width >= 768 && width < 1024;
+  const isDesktop = width >= 1024;
 
   return {
     grid: {
-      left: isMobile ? '5%' : '3%',
+      left: isMobile ? '12%' : isTablet ? '8%' : '5%',
       right: isMobile ? '5%' : '4%',
-      bottom: isMobile ? '15%' : '10%',
-      top: isMobile ? '15%' : '10%',
+      bottom: isMobile ? '18%' : isTablet ? '12%' : '10%',
+      top: isMobile ? '18%' : isTablet ? '14%' : '12%',
       containLabel: true
     },
     legend: {
-      orient: isMobile ? 'vertical' : 'horizontal',
-      bottom: isMobile ? 'bottom' : 'top',
-      left: isMobile ? 'left' : 'center'
+      orient: isMobile ? 'horizontal' : 'horizontal',
+      bottom: isMobile ? 0 : 'auto',
+      top: isMobile ? 'auto' : 5,
+      left: isMobile ? 'center' : 'center',
+      itemGap: isMobile ? 8 : 16,
+      textStyle: {
+        fontSize: isMobile ? 10 : 12
+      }
     },
     tooltip: {
       trigger: 'axis',
-      confine: true
+      confine: true,
+      position: function(point: number[], params: any, dom: any, rect: any, size: any) {
+        // Smart positioning for mobile
+        if (isMobile) {
+          return [10, 10];
+        }
+        return null; // Default positioning for desktop
+      }
     },
     toolbox: {
-      show: !isMobile,
+      show: isDesktop,
+      orient: 'horizontal',
+      itemSize: 14,
+      itemGap: 10,
+      right: 20,
+      top: 20,
       feature: {
-        saveAsImage: { show: true },
-        dataZoom: { show: !isTablet },
-        restore: { show: true }
+        saveAsImage: {
+          show: true,
+          title: 'Save',
+          pixelRatio: 2
+        },
+        dataZoom: {
+          show: true,
+          title: {
+            zoom: 'Zoom',
+            back: 'Reset'
+          }
+        },
+        restore: {
+          show: true,
+          title: 'Reset'
+        }
       }
-    }
+    },
+    animationDuration: isMobile ? 500 : 800,
+    animationEasing: 'cubicInOut'
   };
+};
+
+/**
+ * Chart animation configurations
+ */
+export const chartAnimations = {
+  // Initial load animation
+  initialAnimation: {
+    animationDuration: 1000,
+    animationEasing: 'cubicInOut',
+    animationDelay: (idx: number) => idx * 50
+  },
+
+  // Update animation
+  updateAnimation: {
+    animationDuration: 300,
+    animationEasing: 'cubicInOut'
+  },
+
+  // Hover animation
+  hoverAnimation: {
+    animationDuration: 200,
+    animationEasing: 'cubicOut'
+  }
+};
+
+/**
+ * Empty state configuration
+ */
+export const emptyStateConfig = {
+  backgroundColor: '#0A0A0A',
+  borderRadius: 12,
+  textColor: 'rgba(255, 255, 255, 0.5)',
+  iconColor: 'rgba(255, 255, 255, 0.3)'
 };
