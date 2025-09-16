@@ -49,7 +49,7 @@ export function createTooltipFormatter(
   formatter?: (value: any) => string,
 ) {
   return (
-    params: echarts.CallbackDataParams | echarts.CallbackDataParams[],
+    params: any,
   ) => {
     const param = Array.isArray(params) ? params[0] : params;
     const value = formatter ? formatter(param.value) : param.value;
@@ -81,7 +81,7 @@ export function createBarChartOptions({
       show: !!title,
       textStyle: {
         fontSize: 16,
-        fontWeight: "medium",
+        fontWeight: 500,
       },
     },
     tooltip: {
@@ -148,7 +148,7 @@ export function createLineChartOptions({
       show: !!title,
       textStyle: {
         fontSize: 14,
-        fontWeight: "medium",
+        fontWeight: 500,
       },
     },
     tooltip: {

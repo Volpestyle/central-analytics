@@ -74,18 +74,7 @@ func NewApp(cfg *Config) (*App, error) {
 	costExplorerClient := aws.NewCostExplorerClient(awsCfg)
 	dynamoDBClient := aws.NewDynamoDBClient(awsCfg)
 
-	// Initialize App Store Connect client if credentials provided
-	var appStoreClient *appstore.AppStoreConnectClient
-	if cfg.AppStorePrivateKey != "" {
-		appStoreClient, err = appstore.NewAppStoreConnectClient(
-			cfg.AppStoreKeyID,
-			cfg.AppStoreIssuerID,
-			[]byte(cfg.AppStorePrivateKey),
-		)
-		if err != nil {
-			logger.Warn("Failed to initialize App Store Connect client", "error", err)
-		}
-	}
+	// App Store Connect client initialization handled below
 
 	// Initialize apps configuration
 	appsConfig := appconfig.NewAppsConfiguration()
@@ -103,7 +92,7 @@ func NewApp(cfg *Config) (*App, error) {
 		}
 	}
 
-	// Create a mock AppHandler that uses real dependencies
+	// Create an AppHandler with real dependencies (no mocking)
 	app.appHandler = &handlers.AppHandler{
 		CloudWatch:   cloudWatchClient,
 		CostExplorer: costExplorerClient,
@@ -134,7 +123,7 @@ func NewApp(cfg *Config) (*App, error) {
 		"environment", cfg.Environment,
 		"port", cfg.Port,
 		"apple_auth_enabled", cfg.AppleAuthEnabled,
-		"app_store_enabled", appStoreClient != nil)
+		"app_store_enabled", appStoreConnectClient != nil)
 
 	return app, nil
 }

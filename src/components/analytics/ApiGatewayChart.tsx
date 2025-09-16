@@ -3,11 +3,12 @@
  * Simplified using shared utilities and hooks
  */
 
-import React, { useMemo } from "react";
+import React, { useMemo, useCallback } from "react";
 import ReactECharts from "echarts-for-react";
 import type { EChartsOption } from "echarts";
-import * as echarts from "echarts";
 import { ChartContainer } from "@components/charts/ChartContainer";
+import { ErrorState } from "@components/ui/ErrorState";
+import { LoadingState } from "@components/ui/LoadingState";
 import type {
   TimeRange,
   ApiGatewayMetrics as ApiGatewayMetricsType,
@@ -31,7 +32,7 @@ interface ApiGatewayChartProps {
 
 export const ApiGatewayChart: React.FC<ApiGatewayChartProps> = React.memo(
   ({ appId, timeRange, detailed = false, metrics: aggregatedMetrics }) => {
-    const { data, isLoading, error } = useChartData({
+    const { data, isLoading, error, refetch } = useChartData({
       appId,
       timeRange,
       endpoint: `/api/apps/${appId}/metrics/apigateway`,
@@ -60,6 +61,7 @@ export const ApiGatewayChart: React.FC<ApiGatewayChartProps> = React.memo(
         title={detailed ? "API Gateway Detailed Metrics" : "API Gateway"}
         loading={isLoading}
         error={error}
+        onRetry={refetch}
       >
         {!error && data?.timeSeries?.length > 0 && (
           <ReactECharts
@@ -90,7 +92,7 @@ export const ApiGatewayChart: React.FC<ApiGatewayChartProps> = React.memo(
                 </tr>
               </thead>
               <tbody>
-                {data.endpoints.map((endpoint, index) => (
+                {data.endpoints.map((endpoint: ApiEndpointSummary, index: number) => (
                   <tr
                     key={index}
                     className="border-b border-surface-light/50 hover:bg-surface-light/30 transition-colors"
@@ -137,7 +139,7 @@ export const ApiGatewayMetrics = ApiGatewayChart;
 function createDetailedOptions(
   timeSeries: ApiGatewayMetricsType[],
   endpoints: ApiEndpointSummary[],
-) {
+): EChartsOption {
   const timestamps = formatTimestamps(timeSeries);
 
   return {
@@ -147,7 +149,7 @@ function createDetailedOptions(
       text: "API Gateway Detailed Metrics",
       textStyle: {
         fontSize: 16,
-        fontWeight: "medium",
+        fontWeight: 500,
       },
     },
     tooltip: {
@@ -213,7 +215,7 @@ function createDetailedOptions(
   };
 }
 
-function createSimpleOptions(endpoints: ApiEndpointSummary[], width: number) {
+function createSimpleOptions(endpoints: ApiEndpointSummary[], width: number): EChartsOption {
   const xAxisData = endpoints.map(
     (e) => e.endpoint.split("/").pop() || e.endpoint,
   );

@@ -25,8 +25,8 @@ const BACKEND_HTTP_PORT = parseInt(config.BACKEND_HTTP_PORT || '8080');
 const BACKEND_HTTPS_PORT = parseInt(config.BACKEND_HTTPS_PORT || '3000');
 
 const options = {
-  key: fs.readFileSync(path.join(__dirname, '..', 'certs', 'key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, '..', 'certs', 'cert.pem'))
+  key: fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, '..', '..', 'certs', 'cert.pem'))
 };
 
 const server = https.createServer(options, (req, res) => {

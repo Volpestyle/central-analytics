@@ -3,22 +3,22 @@
   "type": "module",
   "version": "0.1.0",
   "scripts": {
-    "setup:dev": "./scripts/setup-dev.sh",
-    "setup:dev:force": "./scripts/setup-dev.sh --force",
-    "setup:prod": "./scripts/setup-prod.sh",
+    "setup:dev": "./scripts/setup/setup-dev.sh",
+    "setup:dev:force": "./scripts/setup/setup-dev.sh --force",
+    "setup:prod": "./scripts/setup/setup-prod.sh",
     "dev": "concurrently -n \"proxy,frontend,backend\" -c \"cyan,green,yellow\" \"pnpm dev:proxy\" \"pnpm dev:frontend\" \"pnpm dev:backend\"",
-    "dev:sh": "./scripts/run-dev.sh",
+    "dev:sh": "./scripts/dev/run-dev.sh",
     "dev:frontend": "astro dev",
     "dev:backend": "dotenv -e .env -- sh -c 'cd packages/backend && go run cmd/local-server/*.go'",
-    "dev:proxy": "node scripts/https-proxy.cjs",
+    "dev:proxy": "node scripts/dev/https-proxy.cjs",
     "start": "astro dev",
     "build": "astro build",
     "build:backend": "cd packages/backend && go build -o local-server cmd/local-server/main.go",
     "build:all": "pnpm build && pnpm build:backend",
     "preview": "astro preview",
-    "configure:domain": "./scripts/configure-domain.sh",
-    "deploy": "./scripts/deploy.sh",
-    "deploy:dry-run": "./scripts/deploy.sh --dry-run"
+    "configure:domain": "./scripts/utils/configure-domain.sh",
+    "deploy": "./scripts/deploy/deploy.sh",
+    "deploy:dry-run": "./scripts/deploy/deploy.sh --dry-run"
   },
   "dependencies": {
     "@astrojs/react": "^3.6.2",
@@ -48,6 +48,7 @@
     "dotenv": "^17.2.2",
     "dotenv-cli": "^10.0.0",
     "typescript": "^5.7.2",
+    "vite-plugin-pwa": "^1.0.3",
     "workbox-build": "^7.3.0"
   },
   "packageManager": "pnpm@10.11.0"

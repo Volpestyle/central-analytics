@@ -1,4 +1,6 @@
 import React, { ReactNode } from 'react';
+import { ErrorState } from '../ui/ErrorState';
+import { LoadingState } from '../ui/LoadingState';
 
 interface ChartContainerProps {
   title: string;
@@ -8,17 +10,25 @@ interface ChartContainerProps {
   error?: boolean | string | Error | null;
   controls?: ReactNode;
   className?: string;
+  onRetry?: () => void;
 }
 
-export const ChartContainer: React.FC<ChartContainerProps> = ({
+export const ChartContainer: React.FC<ChartContainerProps> = React.memo(({
   title,
   subtitle,
   children,
   loading = false,
   error = null,
   controls,
-  className = ''
+  className = '',
+  onRetry
 }) => {
+  const getErrorMessage = () => {
+    if (typeof error === 'string') return error;
+    if (error instanceof Error) return error.message;
+    return 'Failed to load chart data. Please try again.';
+  };
+
   return (
     <div className={`bg-gray-900 rounded-2xl p-6 border border-gray-800 ${className}`}>
       <div className="flex justify-between items-start mb-6">
@@ -36,23 +46,24 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-        </div>
+        <LoadingState
+          message="Loading chart data..."
+          size="medium"
+          className="h-64"
+        />
       )}
 
       {error && error !== true && (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-red-400 text-center">
-            <p className="text-sm">Failed to load chart</p>
-            <p className="text-xs mt-1">
-              {typeof error === 'string' ? error : error instanceof Error ? error.message : 'An error occurred'}
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="Chart Load Failed"
+          message={getErrorMessage()}
+          onRetry={onRetry}
+          showRetry={!!onRetry}
+          className="h-64"
+        />
       )}
 
       {!loading && (!error || error === true) && children}
     </div>
   );
-};
+});

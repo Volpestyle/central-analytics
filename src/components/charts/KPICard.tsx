@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 
 interface KPICardProps {
@@ -11,7 +11,7 @@ interface KPICardProps {
   color?: string;
 }
 
-export const KPICard: React.FC<KPICardProps> = ({
+export const KPICard: React.FC<KPICardProps> = React.memo(({
   title,
   value,
   change,
@@ -20,7 +20,7 @@ export const KPICard: React.FC<KPICardProps> = ({
   icon,
   color = '#0A84FF'
 }) => {
-  const sparklineOption = {
+  const sparklineOption = useMemo(() => ({
     grid: {
       left: 0,
       right: 0,
@@ -61,7 +61,7 @@ export const KPICard: React.FC<KPICardProps> = ({
         }
       }
     }]
-  };
+  }), [sparklineData, color]);
 
   return (
     <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
@@ -91,4 +91,4 @@ export const KPICard: React.FC<KPICardProps> = ({
       )}
     </div>
   );
-};
+});

@@ -3,19 +3,20 @@
  * Consolidates common patterns across analytics components
  */
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import * as echarts from 'echarts';
-import { darkTheme } from '@/utils/chartTheme';
-import type { TimeRange, AggregatedMetrics } from '@/types/analytics';
-import type { EChartsOption } from 'echarts';
-import { fetchMetrics } from '@lib/api-client';
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import * as echarts from "echarts";
+import { darkTheme } from "@/utils/chartTheme";
+import type { TimeRange, AggregatedMetrics } from "@/types/analytics";
+import type { EChartsOption } from "echarts";
+import { fetchMetrics } from "@lib/api-client";
+import type { MetricsResponse } from "@/types/api";
 
-interface UseChartDataOptions<T> {
+interface UseChartDataOptions<TData, TTransformed = TData> {
   appId: string;
   timeRange: TimeRange;
   endpoint: string;
   aggregatedMetrics?: AggregatedMetrics | null;
-  transformData?: (data: any) => T;
+  transformData?: (data: TData) => TTransformed;
   enabled?: boolean;
 }
 
@@ -26,15 +27,15 @@ interface UseChartDataReturn<T> {
   refetch: () => Promise<void>;
 }
 
-export function useChartData<T = any>({
+export function useChartData<TData = unknown, TTransformed = TData>({
   appId,
   timeRange,
   endpoint,
   aggregatedMetrics,
   transformData,
   enabled = true,
-}: UseChartDataOptions<T>): UseChartDataReturn<T> {
-  const [data, setData] = useState<T | null>(null);
+}: UseChartDataOptions<TData, TTransformed>): UseChartDataReturn<TTransformed> {
+  const [data, setData] = useState<TTransformed | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,21 +50,24 @@ export function useChartData<T = any>({
       if (aggregatedMetrics) {
         const transformed = transformData
           ? transformData(aggregatedMetrics)
-          : (aggregatedMetrics as unknown as T);
+          : (aggregatedMetrics as unknown as TTransformed);
         setData(transformed);
         return;
       }
 
-      const response = await fetchMetrics(endpoint, { appId, timeRange });
+      const response = await fetchMetrics<TData>(endpoint, { appId, timeRange });
 
       if (!response.data) {
-        throw new Error('No data available');
+        throw new Error("No data available");
       }
 
-      const transformed = transformData ? transformData(response.data) : response.data;
+      const transformed = transformData
+        ? transformData(response.data)
+        : response.data;
       setData(transformed);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      const errorMessage =
+        err instanceof Error ? err.message : "An error occurred";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -90,7 +94,9 @@ export function useChartData<T = any>({
  * Custom hook for managing chart instances with resize observers
  */
 export function useChartInstance() {
-  const [chartInstance, setChartInstance] = useState<echarts.ECharts | null>(null);
+  const [chartInstance, setChartInstance] = useState<echarts.ECharts | null>(
+    null,
+  );
   const chartRef = useRef<HTMLDivElement>(null);
 
   const initializeChart = useCallback(() => {
@@ -101,11 +107,14 @@ export function useChartInstance() {
     return instance;
   }, []);
 
-  const setOption = useCallback((option: EChartsOption) => {
-    if (chartInstance) {
-      chartInstance.setOption(option);
-    }
-  }, [chartInstance]);
+  const setOption = useCallback(
+    (option: EChartsOption) => {
+      if (chartInstance) {
+        chartInstance.setOption(option);
+      }
+    },
+    [chartInstance],
+  );
 
   // Handle resize
   useEffect(() => {
@@ -151,7 +160,7 @@ export function useChartViewModes<T extends string>(modes: T[]) {
         isActive: selectedMode === mode,
         onClick: () => setSelectedMode(mode),
       })),
-    [modes, selectedMode]
+    [modes, selectedMode],
   );
 
   return {
@@ -163,17 +172,20 @@ export function useChartViewModes<T extends string>(modes: T[]) {
 /**
  * Custom hook for formatting chart data
  */
-export function useFormattedChartData(data: any[], timeRange: TimeRange) {
+export function useFormattedChartData<T extends { timestamp?: string | Date; date?: string | Date }>(data: T[], timeRange: TimeRange) {
   const timestamps = useMemo(
     () =>
       data.map((d) => {
         const date = new Date(d.timestamp || d.date);
-        if (timeRange === '24h') {
-          return date.toLocaleTimeString('en-US', { hour: '2-digit' });
+        if (timeRange === "24h") {
+          return date.toLocaleTimeString("en-US", { hour: "2-digit" });
         }
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
       }),
-    [data, timeRange]
+    [data, timeRange],
   );
 
   const formatNumber = useCallback((value: number) => {
@@ -186,7 +198,10 @@ export function useFormattedChartData(data: any[], timeRange: TimeRange) {
     return value.toString();
   }, []);
 
-  const formatPercentage = useCallback((value: number) => `${value.toFixed(1)}%`, []);
+  const formatPercentage = useCallback(
+    (value: number) => `${value.toFixed(1)}%`,
+    [],
+  );
 
   return {
     timestamps,

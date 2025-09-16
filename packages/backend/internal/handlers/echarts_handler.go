@@ -352,11 +352,11 @@ func (h *EChartsHandler) GetLambdaFunctionsECharts(w http.ResponseWriter, r *htt
 	lambdaFunctions := h.appHandler.AppsConfig.GetLambdaFunctions(appID)
 
 	type FunctionMetrics struct {
-		Name       string  `json:"name"`
+		Name        string  `json:"name"`
 		Invocations float64 `json:"invocations"`
-		Errors     float64  `json:"errors"`
-		Duration   float64  `json:"duration"`
-		Cost       float64  `json:"cost"`
+		Errors      float64 `json:"errors"`
+		Duration    float64 `json:"duration"`
+		Cost        float64 `json:"cost"`
 	}
 
 	var functionsData []FunctionMetrics
@@ -376,7 +376,7 @@ func (h *EChartsHandler) GetLambdaFunctionsECharts(w http.ResponseWriter, r *htt
 			Name:        functionName,
 			Invocations: invocations,
 			Errors:      errors,
-			Duration:    duration / invocations, // Average duration
+			Duration:    duration / invocations,  // Average duration
 			Cost:        invocations * 0.0000002, // Rough Lambda cost estimate
 		})
 	}
@@ -498,7 +498,8 @@ func (h *EChartsHandler) GetCostProjectionECharts(w http.ResponseWriter, r *http
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetCreditPacksECharts returns credit pack sales data
+// GetCreditPacksECharts returns credit pack sales data formatted for ECharts
+// Returns error response if App Store Connect is not configured or data unavailable
 func (h *EChartsHandler) GetCreditPacksECharts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appID := vars["appId"]
@@ -506,19 +507,31 @@ func (h *EChartsHandler) GetCreditPacksECharts(w http.ResponseWriter, r *http.Re
 	// Parse time range
 	startTime, endTime := parseTimeRange(r)
 
-	// Mock credit pack data for now
-	creditPacks := []map[string]interface{}{
-		{"name": "50 Credits", "sales": 120, "revenue": 119.88},
-		{"name": "200 Credits", "sales": 85, "revenue": 339.15},
-		{"name": "500 Credits", "sales": 45, "revenue": 404.55},
-		{"name": "1000 Credits", "sales": 20, "revenue": 299.80},
+	// Check if App Store Connect is configured
+	if h.appHandler.AppStore == nil {
+		response := map[string]interface{}{
+			"data": []interface{}{},
+			"metadata": map[string]interface{}{
+				"appId":     appID,
+				"period":    formatPeriod(startTime, endTime),
+				"error":     "App Store Connect not configured",
+				"available": false,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
+	// Credit pack breakdown requires advanced App Store Connect reporting
+	// This endpoint is not yet available in Apple's API
 	response := map[string]interface{}{
-		"data": creditPacks,
+		"data": []interface{}{},
 		"metadata": map[string]interface{}{
-			"appId":  appID,
-			"period": formatPeriod(startTime, endTime),
+			"appId":     appID,
+			"period":    formatPeriod(startTime, endTime),
+			"error":     "Credit pack breakdown not available from App Store Connect API",
+			"available": false,
 		},
 	}
 
@@ -526,7 +539,8 @@ func (h *EChartsHandler) GetCreditPacksECharts(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetGeographicECharts returns geographic distribution data
+// GetGeographicECharts returns geographic distribution data formatted for ECharts
+// Returns error response if App Store Connect is not configured or data unavailable
 func (h *EChartsHandler) GetGeographicECharts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appID := vars["appId"]
@@ -534,20 +548,31 @@ func (h *EChartsHandler) GetGeographicECharts(w http.ResponseWriter, r *http.Req
 	// Parse time range
 	startTime, endTime := parseTimeRange(r)
 
-	// Mock geographic data for now
-	geographic := []map[string]interface{}{
-		{"country": "United States", "downloads": 3420, "revenue": 2580.50},
-		{"country": "Canada", "downloads": 892, "revenue": 672.30},
-		{"country": "United Kingdom", "downloads": 756, "revenue": 569.80},
-		{"country": "Australia", "downloads": 423, "revenue": 318.50},
-		{"country": "Germany", "downloads": 312, "revenue": 235.20},
+	// Check if App Store Connect is configured
+	if h.appHandler.AppStore == nil {
+		response := map[string]interface{}{
+			"data": []interface{}{},
+			"metadata": map[string]interface{}{
+				"appId":     appID,
+				"period":    formatPeriod(startTime, endTime),
+				"error":     "App Store Connect not configured",
+				"available": false,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
+	// Geographic data requires additional App Store Connect setup
+	// This endpoint is not yet available in Apple's reporting API
 	response := map[string]interface{}{
-		"data": geographic,
+		"data": []interface{}{},
 		"metadata": map[string]interface{}{
-			"appId":  appID,
-			"period": formatPeriod(startTime, endTime),
+			"appId":     appID,
+			"period":    formatPeriod(startTime, endTime),
+			"error":     "Geographic distribution not available from App Store Connect API",
+			"available": false,
 		},
 	}
 
@@ -555,7 +580,8 @@ func (h *EChartsHandler) GetGeographicECharts(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(response)
 }
 
-// GetEngagementECharts returns user engagement metrics
+// GetEngagementECharts returns user engagement metrics formatted for ECharts
+// Returns error response if App Store Connect is not configured or data unavailable
 func (h *EChartsHandler) GetEngagementECharts(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appID := vars["appId"]
@@ -563,57 +589,31 @@ func (h *EChartsHandler) GetEngagementECharts(w http.ResponseWriter, r *http.Req
 	// Parse time range
 	startTime, endTime := parseTimeRange(r)
 
-	// Mock engagement data for now
-	engagement := []map[string]interface{}{
-		{
-			"timestamp": endTime.AddDate(0, 0, -6).Format("2006-01-02"),
-			"sessions": 1250,
-			"activeDevices": 892,
-			"crashRate": 0.2,
-		},
-		{
-			"timestamp": endTime.AddDate(0, 0, -5).Format("2006-01-02"),
-			"sessions": 1340,
-			"activeDevices": 923,
-			"crashRate": 0.15,
-		},
-		{
-			"timestamp": endTime.AddDate(0, 0, -4).Format("2006-01-02"),
-			"sessions": 1180,
-			"activeDevices": 856,
-			"crashRate": 0.18,
-		},
-		{
-			"timestamp": endTime.AddDate(0, 0, -3).Format("2006-01-02"),
-			"sessions": 1420,
-			"activeDevices": 978,
-			"crashRate": 0.12,
-		},
-		{
-			"timestamp": endTime.AddDate(0, 0, -2).Format("2006-01-02"),
-			"sessions": 1520,
-			"activeDevices": 1023,
-			"crashRate": 0.1,
-		},
-		{
-			"timestamp": endTime.AddDate(0, 0, -1).Format("2006-01-02"),
-			"sessions": 1380,
-			"activeDevices": 945,
-			"crashRate": 0.14,
-		},
-		{
-			"timestamp": endTime.Format("2006-01-02"),
-			"sessions": 1290,
-			"activeDevices": 912,
-			"crashRate": 0.16,
-		},
+	// Check if App Store Connect is configured
+	if h.appHandler.AppStore == nil {
+		response := map[string]interface{}{
+			"data": []interface{}{},
+			"metadata": map[string]interface{}{
+				"appId":     appID,
+				"period":    formatPeriod(startTime, endTime),
+				"error":     "App Store Connect not configured",
+				"available": false,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
 	}
 
+	// Engagement metrics require advanced App Store Connect setup
+	// This endpoint is not yet available in Apple's reporting API
 	response := map[string]interface{}{
-		"data": engagement,
+		"data": []interface{}{},
 		"metadata": map[string]interface{}{
-			"appId":  appID,
-			"period": formatPeriod(startTime, endTime),
+			"appId":     appID,
+			"period":    formatPeriod(startTime, endTime),
+			"error":     "User engagement metrics not available from App Store Connect API",
+			"available": false,
 		},
 	}
 

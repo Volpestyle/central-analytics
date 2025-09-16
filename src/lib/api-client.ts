@@ -4,10 +4,7 @@
  */
 
 import { appleAuth } from './apple-auth';
-
-interface FetchOptions extends RequestInit {
-  requireAuth?: boolean;
-}
+import type { ApiResponse, MetricsResponse, FetchOptions } from '@/types/api';
 
 /**
  * Makes an authenticated API request
@@ -18,9 +15,9 @@ interface FetchOptions extends RequestInit {
 export async function apiClient(url: string, options: FetchOptions = {}): Promise<Response> {
   const { requireAuth = true, headers: customHeaders = {}, ...fetchOptions } = options;
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...customHeaders,
+    ...(customHeaders as Record<string, string>),
   };
 
   // Add authorization header if auth is required
@@ -43,7 +40,7 @@ export async function apiClient(url: string, options: FetchOptions = {}): Promis
  * @param options Optional fetch options
  * @returns Promise<T> The parsed JSON response
  */
-export async function apiGet<T = any>(url: string, options?: FetchOptions): Promise<T> {
+export async function apiGet<T>(url: string, options?: FetchOptions): Promise<T> {
   const response = await apiClient(url, { ...options, method: 'GET' });
 
   if (!response.ok) {
@@ -60,7 +57,7 @@ export async function apiGet<T = any>(url: string, options?: FetchOptions): Prom
  * @param options Optional fetch options
  * @returns Promise<T> The parsed JSON response
  */
-export async function apiPost<T = any>(url: string, data?: any, options?: FetchOptions): Promise<T> {
+export async function apiPost<T, TData = unknown>(url: string, data?: TData, options?: FetchOptions): Promise<T> {
   const response = await apiClient(url, {
     ...options,
     method: 'POST',
@@ -97,14 +94,14 @@ export function buildApiUrl(path: string, params?: Record<string, string | numbe
  * @param params Query parameters
  * @returns Promise<T> The metrics data
  */
-export async function fetchMetrics<T = any>(
+export async function fetchMetrics<T>(
   endpoint: string,
   params?: Record<string, string | number>
-): Promise<{ data: T; metadata?: any }> {
+): Promise<MetricsResponse<T>> {
   const url = buildApiUrl(endpoint, params);
 
   try {
-    const response = await apiGet<{ data: T; metadata?: any }>(url);
+    const response = await apiGet<MetricsResponse<T>>(url);
     return response;
   } catch (error) {
     console.error(`Failed to fetch metrics from ${endpoint}:`, error);
@@ -118,7 +115,7 @@ export async function fetchMetrics<T = any>(
  * @param requests Array of endpoint configurations
  * @returns Promise array of responses
  */
-export async function fetchMetricsParallel<T extends readonly any[]>(
+export async function fetchMetricsParallel<T extends readonly unknown[]>(
   requests: { endpoint: string; params?: Record<string, string | number> }[]
 ): Promise<T> {
   const promises = requests.map(({ endpoint, params }) =>
@@ -128,5 +125,5 @@ export async function fetchMetricsParallel<T extends readonly any[]>(
     })
   );
 
-  return Promise.all(promises) as Promise<T>;
+  return Promise.all(promises) as unknown as Promise<T>;
 }

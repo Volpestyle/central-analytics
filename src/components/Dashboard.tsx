@@ -1,12 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { useAuthStore } from '../stores/authStore';
-import { KPICard } from './charts/KPICard';
-import { ChartContainer } from './charts/ChartContainer';
-import ReactECharts from 'echarts-for-react';
-import { darkTheme, getResponsiveOptions } from '../utils/chartTheme';
+import React, { useEffect, useState } from "react";
+import { useAuthStore } from "../stores/authStore";
+import { KPICard } from "./charts/KPICard";
+import { ChartContainer } from "./charts/ChartContainer";
+import ReactECharts from "echarts-for-react";
+import { darkTheme, getResponsiveOptions } from "../utils/chartTheme";
+import type { User } from "../types/auth";
 
 interface DashboardProps {
-  user?: any;
+  user?: User;
 }
 
 export default function Dashboard({ user }: DashboardProps) {
@@ -15,78 +16,87 @@ export default function Dashboard({ user }: DashboardProps) {
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const lambdaMetricsOption = {
     ...darkTheme,
     ...getResponsiveOptions(windowWidth),
     title: {
-      text: 'Lambda Invocations',
-      textStyle: { color: '#ffffff', fontSize: 16 }
+      text: "Lambda Invocations",
+      textStyle: { color: "#ffffff", fontSize: 16 },
     },
     xAxis: {
-      type: 'category',
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      axisLabel: { color: '#999999' }
+      type: "category",
+      data: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+      axisLabel: { color: "#999999" },
     },
     yAxis: {
-      type: 'value',
-      axisLabel: { color: '#999999' },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      type: "value",
+      axisLabel: { color: "#999999" },
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)" } },
     },
-    series: [{
-      name: 'Invocations',
-      type: 'bar',
-      data: [120, 200, 150, 80, 70, 110, 130],
-      itemStyle: { color: '#0A84FF' }
-    }]
+    series: [
+      {
+        name: "Invocations",
+        type: "bar",
+        data: [120, 200, 150, 80, 70, 110, 130],
+        itemStyle: { color: "#0A84FF" },
+      },
+    ],
   };
 
   const costTrendOption = {
     ...darkTheme,
     ...getResponsiveOptions(windowWidth),
     title: {
-      text: 'AWS Cost Trend',
-      textStyle: { color: '#ffffff', fontSize: 16 }
+      text: "AWS Cost Trend",
+      textStyle: { color: "#ffffff", fontSize: 16 },
     },
     xAxis: {
-      type: 'category',
-      data: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-      axisLabel: { color: '#999999' }
+      type: "category",
+      data: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+      axisLabel: { color: "#999999" },
     },
     yAxis: {
-      type: 'value',
+      type: "value",
       axisLabel: {
-        color: '#999999',
-        formatter: '${value}'
+        color: "#999999",
+        formatter: "${value}",
       },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } }
+      splitLine: { lineStyle: { color: "rgba(255,255,255,0.05)" } },
     },
-    series: [{
-      name: 'Cost',
-      type: 'line',
-      smooth: true,
-      data: [820, 932, 901, 934, 1290, 1330],
-      itemStyle: { color: '#32D74B' },
-      areaStyle: {
-        color: {
-          type: 'linear',
-          x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: 'rgba(50, 215, 75, 0.3)' },
-            { offset: 1, color: 'rgba(50, 215, 75, 0.05)' }
-          ]
-        }
-      }
-    }]
+    series: [
+      {
+        name: "Cost",
+        type: "line",
+        smooth: true,
+        data: [820, 932, 901, 934, 1290, 1330],
+        itemStyle: { color: "#32D74B" },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: "rgba(50, 215, 75, 0.3)" },
+              { offset: 1, color: "rgba(50, 215, 75, 0.05)" },
+            ],
+          },
+        },
+      },
+    ],
   };
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-white text-xl">Please sign in to view the dashboard</div>
+        <div className="text-white text-xl">
+          Please sign in to view the dashboard
+        </div>
       </div>
     );
   }
@@ -95,7 +105,9 @@ export default function Dashboard({ user }: DashboardProps) {
     <div className="min-h-screen bg-black p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Analytics Dashboard</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">
+            Analytics Dashboard
+          </h1>
           <p className="text-gray-400">Monitoring ilikeyacut iOS app</p>
         </div>
 
@@ -131,12 +143,15 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <ChartContainer title="Lambda Function Metrics" subtitle="Last 7 days">
+          <ChartContainer
+            title="Lambda Function Metrics"
+            subtitle="Last 7 days"
+          >
             <div className="h-80">
               <ReactECharts
                 option={lambdaMetricsOption}
                 theme="dark"
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: "100%", width: "100%" }}
               />
             </div>
           </ChartContainer>
@@ -146,7 +161,7 @@ export default function Dashboard({ user }: DashboardProps) {
               <ReactECharts
                 option={costTrendOption}
                 theme="dark"
-                style={{ height: '100%', width: '100%' }}
+                style={{ height: "100%", width: "100%" }}
               />
             </div>
           </ChartContainer>
@@ -154,7 +169,9 @@ export default function Dashboard({ user }: DashboardProps) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-lg font-semibold text-white mb-3">App Store Metrics</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              App Store Metrics
+            </h3>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">Downloads Today</span>
@@ -172,7 +189,9 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
 
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-lg font-semibold text-white mb-3">DynamoDB Status</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              DynamoDB Status
+            </h3>
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-400">Read Capacity</span>
@@ -190,7 +209,9 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
 
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
-            <h3 className="text-lg font-semibold text-white mb-3">System Health</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              System Health
+            </h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-gray-400">API Gateway</span>
