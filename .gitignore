@@ -22,3 +22,10 @@ pnpm-debug.log*
 .env
 .env.local
 .env.production
+
+# certificates - never commit
+*.pem
+*.crt
+*.key
+*.p12
+certs/

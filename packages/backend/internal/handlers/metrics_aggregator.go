@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -14,61 +15,63 @@ import (
 // MetricsAggregator handles aggregated metrics endpoints
 type MetricsAggregator struct {
 	appHandler *AppHandler
+	logger     *slog.Logger
 }
 
 // NewMetricsAggregator creates a new metrics aggregator
-func NewMetricsAggregator(appHandler *AppHandler) *MetricsAggregator {
+func NewMetricsAggregator(appHandler *AppHandler, logger *slog.Logger) *MetricsAggregator {
 	return &MetricsAggregator{
 		appHandler: appHandler,
+		logger:     logger,
 	}
 }
 
 // AggregatedMetrics represents combined metrics from all sources
 type AggregatedMetrics struct {
-	AppID          string                    `json:"appId"`
-	Period         string                    `json:"period"`
-	AWS            *AWSMetricsSummary        `json:"aws"`
-	AppStore       *AppStoreMetricsSummary   `json:"appStore"`
-	Health         *HealthSummary            `json:"health"`
-	Timestamp      int64                     `json:"timestamp"`
+	AppID     string                  `json:"appId"`
+	Period    string                  `json:"period"`
+	AWS       *AWSMetricsSummary      `json:"aws"`
+	AppStore  *AppStoreMetricsSummary `json:"appStore"`
+	Health    *HealthSummary          `json:"health"`
+	Timestamp int64                   `json:"timestamp"`
 }
 
 // AWSMetricsSummary represents summarized AWS metrics
 type AWSMetricsSummary struct {
-	Lambda      *LambdaSummary      `json:"lambda"`
-	APIGateway  *APIGatewaySummary  `json:"apiGateway"`
-	DynamoDB    *DynamoDBSummary    `json:"dynamoDB"`
-	Cost        *CostSummary        `json:"cost"`
+	Lambda     *LambdaSummary     `json:"lambda"`
+	APIGateway *APIGatewaySummary `json:"apiGateway"`
+	DynamoDB   *DynamoDBSummary   `json:"dynamoDB"`
+	Cost       *CostSummary       `json:"cost"`
 }
 
 // LambdaSummary represents summarized Lambda metrics
 type LambdaSummary struct {
-	TotalInvocations     float64 `json:"totalInvocations"`
-	TotalErrors          float64 `json:"totalErrors"`
-	ErrorRate            float64 `json:"errorRate"`
-	AverageDuration      float64 `json:"averageDuration"`
-	TotalThrottles       float64 `json:"totalThrottles"`
-	FunctionCount        int     `json:"functionCount"`
+	TotalInvocations float64 `json:"totalInvocations"`
+	TotalErrors      float64 `json:"totalErrors"`
+	ErrorRate        float64 `json:"errorRate"`
+	AverageDuration  float64 `json:"averageDuration"`
+	TotalThrottles   float64 `json:"totalThrottles"`
+	FunctionCount    int     `json:"functionCount"`
 }
 
 // APIGatewaySummary represents summarized API Gateway metrics
 type APIGatewaySummary struct {
-	TotalRequests   float64 `json:"totalRequests"`
-	Total4XXErrors  float64 `json:"total4xxErrors"`
-	Total5XXErrors  float64 `json:"total5xxErrors"`
-	ErrorRate       float64 `json:"errorRate"`
-	AverageLatency  float64 `json:"averageLatency"`
+	TotalRequests  float64 `json:"totalRequests"`
+	Total4XXErrors float64 `json:"total4xxErrors"`
+	Total5XXErrors float64 `json:"total5xxErrors"`
+	ErrorRate      float64 `json:"errorRate"`
+	AverageLatency float64 `json:"averageLatency"`
 }
 
 // DynamoDBSummary represents summarized DynamoDB metrics
 type DynamoDBSummary struct {
-	TotalReadCapacity    float64 `json:"totalReadCapacity"`
-	TotalWriteCapacity   float64 `json:"totalWriteCapacity"`
-	TotalThrottles       float64 `json:"totalThrottles"`
-	TotalErrors          float64 `json:"totalErrors"`
-	TableCount           int     `json:"tableCount"`
-	TotalItemCount       int64   `json:"totalItemCount"`
-	TotalSizeBytes       int64   `json:"totalSizeBytes"`
+	TotalReadCapacity  float64 `json:"totalReadCapacity"`
+	TotalWriteCapacity float64 `json:"totalWriteCapacity"`
+	TotalThrottles     float64 `json:"totalThrottles"`
+	TotalErrors        float64 `json:"totalErrors"`
+	TableCount         int     `json:"tableCount"`
+	TotalItemCount     int64   `json:"totalItemCount"`
+	TotalSizeBytes     int64   `json:"totalSizeBytes"`
 }
 
 // CostSummary represents summarized cost metrics
@@ -88,22 +91,22 @@ type ServiceCostSummary struct {
 
 // AppStoreMetricsSummary represents summarized App Store metrics
 type AppStoreMetricsSummary struct {
-	Downloads      int64   `json:"downloads"`
-	Updates        int64   `json:"updates"`
-	Revenue        float64 `json:"revenue"`
-	ARPU           float64 `json:"arpu"`
-	ActiveDevices  int64   `json:"activeDevices"`
-	AverageRating  float64 `json:"averageRating"`
-	TotalRatings   int64   `json:"totalRatings"`
+	Downloads     int64   `json:"downloads"`
+	Updates       int64   `json:"updates"`
+	Revenue       float64 `json:"revenue"`
+	ARPU          float64 `json:"arpu"`
+	ActiveDevices int64   `json:"activeDevices"`
+	AverageRating float64 `json:"averageRating"`
+	TotalRatings  int64   `json:"totalRatings"`
 }
 
 // HealthSummary represents overall health status
 type HealthSummary struct {
-	Status           string            `json:"status"`
-	HealthyServices  int               `json:"healthyServices"`
-	DegradedServices int               `json:"degradedServices"`
-	UnknownServices  int               `json:"unknownServices"`
-	Issues           []string          `json:"issues"`
+	Status           string   `json:"status"`
+	HealthyServices  int      `json:"healthyServices"`
+	DegradedServices int      `json:"degradedServices"`
+	UnknownServices  int      `json:"unknownServices"`
+	Issues           []string `json:"issues"`
 }
 
 // GetAggregatedMetrics returns combined metrics from all sources
@@ -161,7 +164,7 @@ func (ma *MetricsAggregator) GetAggregatedMetrics(w http.ResponseWriter, r *http
 	}()
 
 	// Fetch App Store metrics if configured
-	if ma.appHandler.appStore != nil {
+	if ma.appHandler.AppStore != nil {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -192,14 +195,14 @@ func (ma *MetricsAggregator) GetAggregatedMetrics(w http.ResponseWriter, r *http
 func (ma *MetricsAggregator) fetchLambdaSummary(ctx context.Context, appID string, startTime, endTime time.Time) *LambdaSummary {
 	summary := &LambdaSummary{}
 
-	lambdaFunctions := ma.appHandler.getLambdaFunctionsForApp(appID)
+	lambdaFunctions := ma.appHandler.AppsConfig.GetLambdaFunctions(appID)
 	summary.FunctionCount = len(lambdaFunctions)
 
 	var totalDuration float64
 	var durationCount int
 
 	for _, functionName := range lambdaFunctions {
-		metrics, err := ma.appHandler.cloudWatch.GetLambdaMetrics(ctx, functionName, startTime, endTime)
+		metrics, err := ma.appHandler.CloudWatch.GetLambdaMetrics(ctx, functionName, startTime, endTime)
 		if err != nil {
 			continue
 		}
@@ -228,12 +231,12 @@ func (ma *MetricsAggregator) fetchLambdaSummary(ctx context.Context, appID strin
 func (ma *MetricsAggregator) fetchAPIGatewaySummary(ctx context.Context, appID string, startTime, endTime time.Time) *APIGatewaySummary {
 	summary := &APIGatewaySummary{}
 
-	apiName := ma.appHandler.getAPIGatewayForApp(appID)
+	apiName := ma.appHandler.AppsConfig.GetAPIGateway(appID)
 	if apiName == "" {
 		return summary
 	}
 
-	metrics, err := ma.appHandler.cloudWatch.GetAPIGatewayMetrics(ctx, apiName, startTime, endTime)
+	metrics, err := ma.appHandler.CloudWatch.GetAPIGatewayMetrics(ctx, apiName, startTime, endTime)
 	if err != nil {
 		return summary
 	}
@@ -253,11 +256,11 @@ func (ma *MetricsAggregator) fetchAPIGatewaySummary(ctx context.Context, appID s
 func (ma *MetricsAggregator) fetchDynamoDBSummary(ctx context.Context, appID string, startTime, endTime time.Time) *DynamoDBSummary {
 	summary := &DynamoDBSummary{}
 
-	tables := ma.appHandler.getDynamoDBTablesForApp(appID)
+	tables := ma.appHandler.AppsConfig.GetDynamoDBTables(appID)
 	summary.TableCount = len(tables)
 
 	for _, tableName := range tables {
-		metrics, err := ma.appHandler.dynamoDB.GetTableMetrics(ctx, tableName, startTime, endTime)
+		metrics, err := ma.appHandler.DynamoDB.GetTableMetrics(ctx, tableName, startTime, endTime)
 		if err != nil {
 			continue
 		}
@@ -276,7 +279,7 @@ func (ma *MetricsAggregator) fetchDynamoDBSummary(ctx context.Context, appID str
 func (ma *MetricsAggregator) fetchCostSummary(ctx context.Context, startTime, endTime time.Time) *CostSummary {
 	summary := &CostSummary{}
 
-	costData, err := ma.appHandler.costExplorer.GetCostAndUsage(ctx, startTime, endTime)
+	costData, err := ma.appHandler.CostExplorer.GetCostAndUsage(ctx, startTime, endTime)
 	if err != nil {
 		return summary
 	}
@@ -310,12 +313,12 @@ func (ma *MetricsAggregator) fetchCostSummary(ctx context.Context, startTime, en
 func (ma *MetricsAggregator) fetchAppStoreSummary(ctx context.Context, appID string, startTime, endTime time.Time) *AppStoreMetricsSummary {
 	summary := &AppStoreMetricsSummary{}
 
-	appStoreID := ma.appHandler.getAppStoreIDForApp(appID)
+	appStoreID := ma.appHandler.AppsConfig.GetAppStoreID(appID)
 	if appStoreID == "" {
 		return summary
 	}
 
-	analytics, err := ma.appHandler.appStore.GetAppAnalytics(ctx, appStoreID, startTime, endTime)
+	analytics, err := ma.appHandler.AppStore.GetAppAnalytics(ctx, appStoreID, startTime, endTime)
 	if err != nil {
 		return summary
 	}
@@ -345,9 +348,9 @@ func (ma *MetricsAggregator) fetchHealthSummary(ctx context.Context, appID strin
 	startTime := endTime.Add(-1 * time.Hour)
 
 	// Check Lambda health
-	lambdaFunctions := ma.appHandler.getLambdaFunctionsForApp(appID)
+	lambdaFunctions := ma.appHandler.AppsConfig.GetLambdaFunctions(appID)
 	for _, functionName := range lambdaFunctions {
-		metrics, err := ma.appHandler.cloudWatch.GetLambdaMetrics(ctx, functionName, startTime, endTime)
+		metrics, err := ma.appHandler.CloudWatch.GetLambdaMetrics(ctx, functionName, startTime, endTime)
 		if err != nil {
 			summary.UnknownServices++
 			continue
@@ -372,9 +375,9 @@ func (ma *MetricsAggregator) fetchHealthSummary(ctx context.Context, appID strin
 	}
 
 	// Check API Gateway health
-	apiName := ma.appHandler.getAPIGatewayForApp(appID)
+	apiName := ma.appHandler.AppsConfig.GetAPIGateway(appID)
 	if apiName != "" {
-		apiMetrics, err := ma.appHandler.cloudWatch.GetAPIGatewayMetrics(ctx, apiName, startTime, endTime)
+		apiMetrics, err := ma.appHandler.CloudWatch.GetAPIGatewayMetrics(ctx, apiName, startTime, endTime)
 		if err != nil {
 			summary.UnknownServices++
 		} else {
@@ -398,9 +401,9 @@ func (ma *MetricsAggregator) fetchHealthSummary(ctx context.Context, appID strin
 	}
 
 	// Check DynamoDB health
-	tables := ma.appHandler.getDynamoDBTablesForApp(appID)
+	tables := ma.appHandler.AppsConfig.GetDynamoDBTables(appID)
 	for _, tableName := range tables {
-		metrics, err := ma.appHandler.dynamoDB.GetTableMetrics(ctx, tableName, startTime, endTime)
+		metrics, err := ma.appHandler.DynamoDB.GetTableMetrics(ctx, tableName, startTime, endTime)
 		if err != nil {
 			summary.UnknownServices++
 			continue

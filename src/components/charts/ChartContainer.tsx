@@ -5,7 +5,7 @@ interface ChartContainerProps {
   subtitle?: string;
   children: ReactNode;
   loading?: boolean;
-  error?: Error | null;
+  error?: boolean | string | Error | null;
   controls?: ReactNode;
   className?: string;
 }
@@ -41,16 +41,18 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
         </div>
       )}
 
-      {error && (
+      {error && error !== true && (
         <div className="flex items-center justify-center h-64">
           <div className="text-red-400 text-center">
             <p className="text-sm">Failed to load chart</p>
-            <p className="text-xs mt-1">{error.message}</p>
+            <p className="text-xs mt-1">
+              {typeof error === 'string' ? error : error instanceof Error ? error.message : 'An error occurred'}
+            </p>
           </div>
         </div>
       )}
 
-      {!loading && !error && children}
+      {!loading && (!error || error === true) && children}
     </div>
   );
 };

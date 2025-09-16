@@ -2,6 +2,54 @@ import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 import vitePWA from '@vite-pwa/astro';
+import fs from 'fs';
+import { config } from 'dotenv';
+
+// Load environment variables
+config();
+
+// Load domain configuration if available
+const loadDomainConfig = () => {
+  try {
+    if (fs.existsSync('.domain.config')) {
+      const configContent = fs.readFileSync('.domain.config', 'utf-8');
+      const config = {};
+      configContent.split('\n').forEach(line => {
+        if (line && !line.startsWith('#') && line.includes('=')) {
+          const [key, value] = line.split('=');
+          config[key.trim()] = value.trim();
+        }
+      });
+      return config;
+    }
+  } catch (e) {
+    console.log('Domain configuration not found. Using defaults.');
+  }
+  return {
+    LOCAL_DOMAIN: process.env.PUBLIC_LOCAL_DOMAIN || 'local-dev.jcvolpe.me',
+    FRONTEND_PORT: process.env.FRONTEND_PORT || '4321',
+    BACKEND_HTTPS_PORT: process.env.BACKEND_HTTPS_PORT || '3000'
+  };
+};
+
+const domainConfig = loadDomainConfig();
+
+// Check if certificates exist for HTTPS mode
+const httpsConfig = (() => {
+  try {
+    const certPath = './certs/cert.pem';
+    const keyPath = './certs/key.pem';
+    if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+      return {
+        cert: fs.readFileSync(certPath),
+        key: fs.readFileSync(keyPath)
+      };
+    }
+  } catch (e) {
+    console.log('HTTPS certificates not found. Run ./scripts/generate-certs.sh to enable HTTPS.');
+  }
+  return null;
+})();
 
 // https://astro.build/config
 export default defineConfig({
@@ -45,6 +93,7 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
+        navigateFallbackDenylist: [/^\/src\//], // Exclude source files
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.*/i,
@@ -63,27 +112,37 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
+        enabled: false // Disable PWA in development to avoid caching issues
       }
     })
   ],
   output: 'static',
+  server: {
+    host: true, // Bind to 0.0.0.0 for domain access
+    port: parseInt(domainConfig.FRONTEND_PORT),
+    https: false // Disabled - proxy handles SSL termination
+  },
   vite: {
     ssr: {
       noExternal: ['zustand']
     },
     server: {
-      allowedHosts: [
-        'localhost',
-        'd960a134812e.ngrok-free.app',
-        '.ngrok-free.app',
-        '.ngrok.io'
-      ],
+      host: true,
+      port: parseInt(domainConfig.FRONTEND_PORT),
+      https: false, // Disabled - proxy handles SSL termination
+      hmr: {
+        protocol: 'ws',
+        host: 'localhost',
+        port: parseInt(domainConfig.FRONTEND_PORT) // Use frontend port for HMR
+      },
       proxy: {
         '/api': {
-          target: 'http://localhost:8080',
+          target: httpsConfig
+            ? `https://${domainConfig.LOCAL_DOMAIN}:${domainConfig.BACKEND_HTTPS_PORT}`
+            : 'http://localhost:8080',
           changeOrigin: true,
-          secure: false
+          secure: false,
+          rewrite: (path) => path.replace(/^\/api/, '')
         }
       }
     }

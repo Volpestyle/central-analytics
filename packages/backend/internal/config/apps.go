@@ -45,7 +45,7 @@ func (c *AppsConfiguration) loadAppConfigurations() {
 
 	// Parse Lambda functions from environment
 	lambdaFuncs := getEnvOrDefault("ILIKEYACUT_LAMBDA_FUNCTIONS",
-		"ilikeyacut-gemini-proxy-dev,ilikeyacut-auth-dev,ilikeyacut-user-management-dev,ilikeyacut-payment-processor-dev")
+		"ilikeyacut-gemini-proxy-dev,ilikeyacut-auth-dev,ilikeyacut-templates-dev,ilikeyacut-user-data-dev,ilikeyacut-purchase-dev,ilikeyacut-iap-webhook-dev")
 	ilikeyacutConfig.LambdaFunctions = strings.Split(lambdaFuncs, ",")
 
 	// Set API Gateway
@@ -53,7 +53,7 @@ func (c *AppsConfiguration) loadAppConfigurations() {
 
 	// Parse DynamoDB tables from environment
 	dynamoTables := getEnvOrDefault("ILIKEYACUT_DYNAMODB_TABLES",
-		"ilikeyacut-users-dev,ilikeyacut-transactions-dev,ilikeyacut-sessions-dev,ilikeyacut-analytics-dev")
+		"ilikeyacut-users-dev,ilikeyacut-transactions-dev,ilikeyacut-templates-dev,ilikeyacut-rate-limits-dev")
 	ilikeyacutConfig.DynamoDBTables = strings.Split(dynamoTables, ",")
 
 	c.Apps["ilikeyacut"] = ilikeyacutConfig

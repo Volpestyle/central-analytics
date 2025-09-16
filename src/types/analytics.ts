@@ -141,7 +141,85 @@ export interface UserEngagement {
   retentionDay30: number;
 }
 
-// Aggregated Dashboard Data
+// Aggregated Metrics from Backend
+export interface AggregatedMetrics {
+  appId: string;
+  period: string;
+  aws: AWSMetricsSummary;
+  appStore: AppStoreMetricsSummary;
+  health: HealthSummary;
+  timestamp: number;
+}
+
+// AWS Metrics Summary
+export interface AWSMetricsSummary {
+  lambda: LambdaSummary;
+  apiGateway: APIGatewaySummary;
+  dynamoDB: DynamoDBSummary;
+  cost: CostSummary;
+}
+
+export interface LambdaSummary {
+  totalInvocations: number;
+  totalErrors: number;
+  errorRate: number;
+  averageDuration: number;
+  totalThrottles: number;
+  functionCount: number;
+}
+
+export interface APIGatewaySummary {
+  totalRequests: number;
+  total4xxErrors: number;
+  total5xxErrors: number;
+  errorRate: number;
+  averageLatency: number;
+}
+
+export interface DynamoDBSummary {
+  totalReadCapacity: number;
+  totalWriteCapacity: number;
+  totalThrottles: number;
+  totalErrors: number;
+  tableCount: number;
+  totalItemCount: number;
+  totalSizeBytes: number;
+}
+
+export interface CostSummary {
+  currentPeriod: number;
+  dailyAverage: number;
+  projectedMonth: number;
+  topServices: ServiceCostSummary[];
+}
+
+export interface ServiceCostSummary {
+  serviceName: string;
+  cost: number;
+  percentage: number;
+}
+
+// App Store Metrics Summary
+export interface AppStoreMetricsSummary {
+  downloads: number;
+  updates: number;
+  revenue: number;
+  arpu: number;
+  activeDevices: number;
+  averageRating: number;
+  totalRatings: number;
+}
+
+// Health Summary
+export interface HealthSummary {
+  status: string;
+  healthyServices: number;
+  degradedServices: number;
+  unknownServices: number;
+  issues: string[];
+}
+
+// Legacy type for backward compatibility (will be removed)
 export interface AppMetricsSummary {
   appId: string;
   appName: string;

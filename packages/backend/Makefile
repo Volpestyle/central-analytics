@@ -1,175 +1,111 @@
-.PHONY: all build clean deploy test
+.PHONY: help build run test clean deploy-lambda
 
 # Variables
-FUNCTIONS := auth metrics appstore
-BUILD_DIR := build
-DEPLOY_ENV ?= dev
-PORT ?= 8080
+BINARY_NAME=central-analytics-server
+LAMBDA_FUNCTION=central-analytics-metrics
+GO_VERSION=1.22
 
-# Go build flags
-GOFLAGS := -ldflags="-s -w"
-GOOS := linux
-GOARCH := amd64
+help: ## Show this help message
+	@echo 'Usage: make [target]'
+	@echo ''
+	@echo 'Available targets:'
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-# AWS settings
-AWS_REGION ?= us-east-1
-STACK_NAME := central-analytics-$(DEPLOY_ENV)
+deps: ## Download Go dependencies
+	go mod download
+	go mod tidy
 
-all: clean build
+build: ## Build the local server binary
+	go build -o $(BINARY_NAME) cmd/local-server/main.go
 
-# Build all Lambda functions
-build: $(FUNCTIONS)
+run: ## Run the local server
+	go run cmd/local-server/main.go
 
-$(FUNCTIONS):
-	@echo "Building Lambda function: $@"
-	@mkdir -p $(BUILD_DIR)/$@
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(GOFLAGS) -o $(BUILD_DIR)/$@/bootstrap ./cmd/$@
-	@cd $(BUILD_DIR)/$@ && zip -q function.zip bootstrap
-	@rm $(BUILD_DIR)/$@/bootstrap
-	@echo "Built $@ successfully"
+run-dev: ## Run with development environment
+	AWS_REGION=us-east-1 \
+	PORT=8080 \
+	JWT_SECRET=development-secret \
+	go run cmd/local-server/main.go
 
-# Clean build artifacts
-clean:
-	@echo "Cleaning build artifacts..."
-	@rm -rf $(BUILD_DIR)
+test: ## Run tests
+	go test -v ./...
 
-# Run tests
-test:
-	@echo "Running tests..."
-	@go test -v ./...
+test-coverage: ## Run tests with coverage
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
 
-# Format code
-fmt:
-	@echo "Formatting code..."
-	@go fmt ./...
-	@goimports -w .
+lint: ## Run linter
+	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	golangci-lint run
 
-# Lint code
-lint:
-	@echo "Linting code..."
-	@golangci-lint run
+format: ## Format code
+	go fmt ./...
+	gofmt -s -w .
 
-# Download dependencies
-deps:
-	@echo "Downloading dependencies..."
-	@go mod download
-	@go mod tidy
+build-lambda: ## Build Lambda function
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bootstrap cmd/metrics/main.go
+	zip metrics.zip bootstrap
+	rm bootstrap
 
-# Deploy using Serverless Framework
-deploy-serverless: build
-	@echo "Deploying with Serverless Framework to $(DEPLOY_ENV)..."
-	@serverless deploy --stage $(DEPLOY_ENV) --region $(AWS_REGION)
+deploy-lambda: build-lambda ## Deploy Lambda function to AWS
+	aws lambda update-function-code \
+		--function-name $(LAMBDA_FUNCTION) \
+		--zip-file fileb://metrics.zip
+	rm metrics.zip
 
-# Deploy using Terraform
-deploy-terraform: build
-	@echo "Deploying with Terraform to $(DEPLOY_ENV)..."
-	@cd deploy/terraform && \
-		terraform init && \
-		terraform workspace select $(DEPLOY_ENV) || terraform workspace new $(DEPLOY_ENV) && \
-		terraform apply -var="environment=$(DEPLOY_ENV)" -var="region=$(AWS_REGION)"
+docker-build: ## Build Docker image
+	docker build -t central-analytics-backend .
 
-# Deploy using AWS SAM
-deploy-sam: build
-	@echo "Deploying with SAM to $(DEPLOY_ENV)..."
-	@sam deploy \
-		--stack-name $(STACK_NAME) \
-		--s3-bucket central-analytics-deployments-$(DEPLOY_ENV) \
-		--capabilities CAPABILITY_IAM \
-		--region $(AWS_REGION) \
-		--parameter-overrides Environment=$(DEPLOY_ENV)
+docker-run: ## Run in Docker container
+	docker run -p 8080:8080 \
+		-e AWS_REGION=us-east-1 \
+		-v ~/.aws:/root/.aws:ro \
+		central-analytics-backend
 
-# Run local HTTP server
-run:
-	@echo "Starting local HTTP server on port $(PORT)..."
-	@go run cmd/local-server/main.go
+clean: ## Clean build artifacts
+	rm -f $(BINARY_NAME)
+	rm -f bootstrap
+	rm -f *.zip
+	rm -f coverage.out
+	go clean -cache
 
-# Run local server with hot reload (requires air)
-dev:
-	@echo "Starting development server with hot reload on port $(PORT)..."
-	@which air > /dev/null 2>&1 || (echo "Installing air..." && go install github.com/air-verse/air@latest)
-	@air
+watch: ## Run with file watcher (requires entr)
+	@which entr > /dev/null || (echo "Please install entr: brew install entr" && exit 1)
+	find . -name '*.go' | entr -r make run
 
-# Local development with SAM
-local:
-	@echo "Starting local API with SAM..."
-	@sam local start-api --env-vars env.json
+test-api: ## Test API endpoints
+	./scripts/test-api.sh
 
-# Update function code only (faster deployment)
-update-function:
-	@if [ -z "$(FUNCTION)" ]; then \
-		echo "Please specify FUNCTION=<function-name>"; \
-		exit 1; \
-	fi
-	@echo "Updating Lambda function: $(FUNCTION)"
-	@make $(FUNCTION)
-	@aws lambda update-function-code \
-		--function-name central-analytics-$(DEPLOY_ENV)-$(FUNCTION) \
-		--zip-file fileb://$(BUILD_DIR)/$(FUNCTION)/function.zip \
-		--region $(AWS_REGION)
+# Development helpers
+.PHONY: dev-setup
+dev-setup: ## Setup development environment
+	@echo "Setting up development environment..."
+	@echo "1. Installing dependencies..."
+	@make deps
+	@echo "2. Running linter..."
+	@make lint
+	@echo "3. Running tests..."
+	@make test
+	@echo "✅ Development environment ready!"
 
-# Create secrets in AWS Secrets Manager
-create-secrets:
-	@echo "Creating secrets in AWS Secrets Manager..."
-	@aws secretsmanager create-secret \
-		--name central-analytics/jwt-secret \
-		--secret-string "$$(openssl rand -base64 32)" \
-		--region $(AWS_REGION) || true
-	@echo "JWT secret created. Please update App Store Connect and admin Apple ID secrets manually."
+.PHONY: check-aws
+check-aws: ## Check AWS credentials
+	@echo "Checking AWS configuration..."
+	@aws sts get-caller-identity > /dev/null 2>&1 && \
+		echo "✅ AWS credentials configured" || \
+		echo "❌ AWS credentials not configured. Please run: aws configure"
 
-# View logs for a function
-logs:
-	@if [ -z "$(FUNCTION)" ]; then \
-		echo "Please specify FUNCTION=<function-name>"; \
-		exit 1; \
-	fi
-	@echo "Fetching logs for $(FUNCTION)..."
-	@aws logs tail /aws/lambda/central-analytics-$(DEPLOY_ENV)-$(FUNCTION) \
-		--follow \
-		--region $(AWS_REGION)
+.PHONY: logs-lambda
+logs-lambda: ## Tail Lambda function logs
+	aws logs tail /aws/lambda/$(LAMBDA_FUNCTION) --follow
 
-# Run integration tests
-integration-test:
-	@echo "Running integration tests..."
-	@go test -v -tags=integration ./tests/...
+# Benchmarks
+.PHONY: bench
+bench: ## Run benchmarks
+	go test -bench=. -benchmem ./...
 
-# Generate API documentation
-docs:
-	@echo "Generating API documentation..."
-	@swag init -g cmd/auth/main.go -o docs/
-
-# Performance test
-perf-test:
-	@echo "Running performance tests..."
-	@artillery run tests/performance/load-test.yml
-
-# Security scan
-security:
-	@echo "Running security scan..."
-	@gosec ./...
-	@trivy fs .
-
-# Docker build for local testing
-docker-build:
-	@echo "Building Docker image..."
-	@docker build -t central-analytics-backend:$(DEPLOY_ENV) .
-
-# Help
-help:
-	@echo "Available targets:"
-	@echo "  make run            - Run local HTTP server"
-	@echo "  make dev            - Run development server with hot reload"
-	@echo "  make build          - Build all Lambda functions"
-	@echo "  make clean          - Clean build artifacts"
-	@echo "  make test           - Run unit tests"
-	@echo "  make deploy-serverless - Deploy using Serverless Framework"
-	@echo "  make deploy-terraform  - Deploy using Terraform"
-	@echo "  make deploy-sam     - Deploy using AWS SAM"
-	@echo "  make local          - Start local API with SAM"
-	@echo "  make update-function FUNCTION=name - Update specific function"
-	@echo "  make logs FUNCTION=name - View function logs"
-	@echo "  make create-secrets - Create AWS secrets"
-	@echo ""
-	@echo "Environment variables:"
-	@echo "  PORT                - HTTP server port (default: 8080)"
-	@echo "  DEPLOY_ENV          - Deployment environment (default: dev)"
-	@echo "  AWS_REGION          - AWS region (default: us-east-1)"
+# Security
+.PHONY: security
+security: ## Run security checks
+	@which gosec > /dev/null || (echo "Installing gosec..." && go install github.com/securego/gosec/v2/cmd/gosec@latest)
+	gosec ./...

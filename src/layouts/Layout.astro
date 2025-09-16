@@ -1,4 +1,12 @@
 ---
+import '@fontsource/geist-sans/400.css';
+import '@fontsource/geist-sans/500.css';
+import '@fontsource/geist-sans/600.css';
+import '@fontsource/geist-sans/700.css';
+import '@fontsource/geist-mono/400.css';
+import '@fontsource/geist-mono/500.css';
+import '@fontsource/geist-mono/600.css';
+
 export interface Props {
   title: string;
   description?: string;
@@ -22,6 +30,12 @@ const { title, description = 'Central Analytics Dashboard - Monitor your applica
     <link rel="manifest" href="/manifest.json" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    <style>
+      :root {
+        --font-geist-sans: 'Geist Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        --font-geist-mono: 'Geist Mono', ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+      }
+    </style>
   </head>
   <body>
     <slot />
@@ -30,7 +44,7 @@ const { title, description = 'Central Analytics Dashboard - Monitor your applica
 
 <style is:global>
   html {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background-color: #000000;
     color: #ffffff;
     -webkit-font-smoothing: antialiased;

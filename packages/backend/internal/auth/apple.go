@@ -2,9 +2,9 @@ package auth
 
 import (
 	"context"
-	"encoding/json"
+
 	"fmt"
-	"net/http"
+
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -60,34 +60,41 @@ func (v *AppleAuthVerifier) VerifyToken(tokenString string) (*AppleTokenClaims, 
 
 	// Extract claims
 	claims := &AppleTokenClaims{}
-	claimsMap, ok := token.PrivateClaims().(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid token claims format")
-	}
 
-	// Map claims
-	if sub, ok := token.Subject(); ok {
+	// Map registered claims
+	if sub := token.Subject(); sub != "" {
 		claims.Sub = sub
 	}
 
-	if email, ok := claimsMap["email"].(string); ok {
-		claims.Email = email
+	// Map private claims
+	if val, ok := token.Get("email"); ok {
+		if email, ok2 := val.(string); ok2 {
+			claims.Email = email
+		}
 	}
 
-	if emailVerified, ok := claimsMap["email_verified"].(string); ok {
-		claims.EmailVerified = emailVerified
+	if val, ok := token.Get("email_verified"); ok {
+		if emailVerified, ok2 := val.(string); ok2 {
+			claims.EmailVerified = emailVerified
+		}
 	}
 
-	if isPrivateEmail, ok := claimsMap["is_private_email"].(string); ok {
-		claims.IsPrivateEmail = isPrivateEmail
+	if val, ok := token.Get("is_private_email"); ok {
+		if isPrivateEmail, ok2 := val.(string); ok2 {
+			claims.IsPrivateEmail = isPrivateEmail
+		}
 	}
 
-	if authTime, ok := claimsMap["auth_time"].(float64); ok {
-		claims.AuthTime = int64(authTime)
+	if val, ok := token.Get("auth_time"); ok {
+		if authTime, ok2 := val.(float64); ok2 {
+			claims.AuthTime = int64(authTime)
+		}
 	}
 
-	if nonceSupported, ok := claimsMap["nonce_supported"].(bool); ok {
-		claims.NonceSupported = nonceSupported
+	if val, ok := token.Get("nonce_supported"); ok {
+		if nonceSupported, ok2 := val.(bool); ok2 {
+			claims.NonceSupported = nonceSupported
+		}
 	}
 
 	return claims, nil

@@ -109,11 +109,14 @@ export const useAuthStore = create<AuthState>()(
           // Store auth tokens
           appleAuth.storeAuthTokens(data.accessToken, data.refreshToken);
 
-          // Create user object
+          // Get existing user data from store to preserve fields like name
+          const existingUser = get().user;
+
+          // Create user object, preserving existing name if new one is empty
           const user: User = {
             id: data.user.id,
             email: data.user.email,
-            name: data.user.name,
+            name: data.user.name || existingUser?.name || undefined,
             appleUserSub: tokenPayload.sub,
             isAdmin: appleAuth.isAdminUser(tokenPayload.sub),
             biometricEnabled: data.user.biometricEnabled || false,

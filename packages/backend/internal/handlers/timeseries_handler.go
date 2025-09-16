@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,12 +14,14 @@ import (
 // TimeSeriesHandler handles time series data endpoints
 type TimeSeriesHandler struct {
 	appHandler *AppHandler
+	logger     *slog.Logger
 }
 
 // NewTimeSeriesHandler creates a new time series handler
-func NewTimeSeriesHandler(appHandler *AppHandler) *TimeSeriesHandler {
+func NewTimeSeriesHandler(appHandler *AppHandler, logger *slog.Logger) *TimeSeriesHandler {
 	return &TimeSeriesHandler{
 		appHandler: appHandler,
+		logger:     logger,
 	}
 }
 
@@ -54,7 +57,7 @@ func (h *TimeSeriesHandler) GetLambdaTimeSeries(w http.ResponseWriter, r *http.R
 	startTime, endTime, interval := h.parseTimeSeriesParams(r)
 
 	// Get Lambda functions for the app
-	lambdaFunctions := h.appHandler.getLambdaFunctionsForApp(appID)
+	lambdaFunctions := h.appHandler.AppsConfig.GetLambdaFunctions(appID)
 
 	series := []TimeSeriesPoint{}
 
@@ -70,7 +73,7 @@ func (h *TimeSeriesHandler) GetLambdaTimeSeries(w http.ResponseWriter, r *http.R
 
 		// Aggregate metrics from all Lambda functions
 		for _, functionName := range lambdaFunctions {
-			metrics, err := h.appHandler.cloudWatch.GetLambdaMetrics(
+			metrics, err := h.appHandler.CloudWatch.GetLambdaMetrics(
 				context.Background(),
 				functionName,
 				current,
@@ -137,7 +140,7 @@ func (h *TimeSeriesHandler) GetCostTimeSeries(w http.ResponseWriter, r *http.Req
 	startTime, endTime, _ := h.parseTimeSeriesParams(r)
 
 	// Get daily cost data
-	costData, err := h.appHandler.costExplorer.GetCostAndUsage(
+	costData, err := h.appHandler.CostExplorer.GetCostAndUsage(
 		context.Background(),
 		startTime,
 		endTime,
@@ -191,7 +194,7 @@ func (h *TimeSeriesHandler) GetAPIGatewayTimeSeries(w http.ResponseWriter, r *ht
 	startTime, endTime, interval := h.parseTimeSeriesParams(r)
 
 	// Get API Gateway for the app
-	apiName := h.appHandler.getAPIGatewayForApp(appID)
+	apiName := h.appHandler.AppsConfig.GetAPIGateway(appID)
 	if apiName == "" {
 		http.Error(w, "No API Gateway configured for this app", http.StatusNotFound)
 		return
@@ -206,7 +209,7 @@ func (h *TimeSeriesHandler) GetAPIGatewayTimeSeries(w http.ResponseWriter, r *ht
 			pointEnd = endTime
 		}
 
-		metrics, err := h.appHandler.cloudWatch.GetAPIGatewayMetrics(
+		metrics, err := h.appHandler.CloudWatch.GetAPIGatewayMetrics(
 			context.Background(),
 			apiName,
 			current,
@@ -270,7 +273,7 @@ func (h *TimeSeriesHandler) GetDynamoDBTimeSeries(w http.ResponseWriter, r *http
 	startTime, endTime, interval := h.parseTimeSeriesParams(r)
 
 	// Get DynamoDB tables for the app
-	tables := h.appHandler.getDynamoDBTablesForApp(appID)
+	tables := h.appHandler.AppsConfig.GetDynamoDBTables(appID)
 
 	series := []TimeSeriesPoint{}
 
@@ -285,7 +288,7 @@ func (h *TimeSeriesHandler) GetDynamoDBTimeSeries(w http.ResponseWriter, r *http
 
 		// Aggregate metrics from all tables
 		for _, tableName := range tables {
-			metrics, err := h.appHandler.dynamoDB.GetTableMetrics(
+			metrics, err := h.appHandler.DynamoDB.GetTableMetrics(
 				context.Background(),
 				tableName,
 				current,

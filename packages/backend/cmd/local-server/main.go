@@ -1,186 +1,129 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
-
-	"github.com/gorilla/mux"
-	"github.com/jamesvolpe/central-analytics/backend/internal/handlers"
-	"github.com/rs/cors"
 )
 
-type AppleAuthRequest struct {
-	IDToken           string `json:"idToken"`
-	AuthorizationCode string `json:"authorizationCode"`
-	User              string `json:"user"`
-	Email             string `json:"email"`
-	FullName          struct {
-		GivenName  string `json:"givenName"`
-		FamilyName string `json:"familyName"`
-	} `json:"fullName"`
-}
-
-type AuthResponse struct {
-	AccessToken       string    `json:"accessToken"`
-	RefreshToken      string    `json:"refreshToken"`
-	User              User      `json:"user"`
-	TwoFactorRequired bool      `json:"twoFactorRequired"`
-	Challenge         string    `json:"challenge,omitempty"`
-}
-
-type User struct {
-	ID               string    `json:"id"`
-	Email            string    `json:"email"`
-	Name             string    `json:"name"`
-	AppleUserSub     string    `json:"appleUserSub"`
-	IsAdmin          bool      `json:"isAdmin"`
-	BiometricEnabled bool      `json:"biometricEnabled"`
-	LastAuthenticated time.Time `json:"lastAuthenticated"`
-}
-
-func handleAppleAuth(w http.ResponseWriter, r *http.Request) {
-	log.Println("Apple auth endpoint called")
-
-	var req AppleAuthRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("Error decoding request: %v", err)
-		http.Error(w, "Invalid request", http.StatusBadRequest)
-		return
-	}
-
-	log.Printf("Auth request for user: %s, email: %s", req.User, req.Email)
-
-	// For local development, we'll accept the Apple token and create a session
-	// In production, you'd verify the token with Apple's servers
-
-	adminSub := os.Getenv("ADMIN_APPLE_SUB")
-	if adminSub == "" {
-		adminSub = "your_admin_apple_id_sub_identifier" // fallback for local dev
-	}
-
-	// Create response
-	response := AuthResponse{
-		AccessToken:  fmt.Sprintf("access-%d", time.Now().Unix()),
-		RefreshToken: fmt.Sprintf("refresh-%d", time.Now().Unix()),
-		User: User{
-			ID:                req.User,
-			Email:             req.Email,
-			Name:              req.FullName.GivenName,
-			AppleUserSub:      req.User,
-			IsAdmin:           req.User == adminSub,
-			BiometricEnabled:  false,
-			LastAuthenticated: time.Now(),
-		},
-		TwoFactorRequired: false,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-	log.Println("Auth response sent successfully")
-}
-
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	// Parse command-line flags
+	var (
+		httpsMode = flag.Bool("https", false, "Enable HTTPS proxy mode for Apple Sign In testing")
+		httpsPort = flag.String("https-port", "3000", "HTTPS proxy port (default: 3000)")
+	)
+	flag.Parse()
 
-	r := mux.NewRouter()
-
-	// Initialize app handler
-	appHandler, err := handlers.NewAppHandler()
+	cfg, err := LoadConfig()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize app handler: %v", err)
+		log.Fatal("Failed to load config:", err)
 	}
 
-	// Initialize metrics aggregator
-	var metricsAggregator *handlers.MetricsAggregator
-	if appHandler != nil {
-		metricsAggregator = handlers.NewMetricsAggregator(appHandler)
-	}
-
-	// Initialize time series handler
-	var timeSeriesHandler *handlers.TimeSeriesHandler
-	if appHandler != nil {
-		timeSeriesHandler = handlers.NewTimeSeriesHandler(appHandler)
-	}
-
-	// Apple auth endpoint
-	r.HandleFunc("/api/auth/apple", handleAppleAuth).Methods("POST")
-
-	// AWS Infrastructure Dashboard endpoints (protected)
-	if appHandler != nil {
-		// Lambda metrics
-		r.HandleFunc("/api/apps/{appId}/aws/lambda",
-			appHandler.AuthMiddleware(appHandler.GetLambdaMetrics)).Methods("GET")
-
-		// API Gateway metrics
-		r.HandleFunc("/api/apps/{appId}/aws/apigateway",
-			appHandler.AuthMiddleware(appHandler.GetAPIGatewayMetrics)).Methods("GET")
-
-		// DynamoDB metrics
-		r.HandleFunc("/api/apps/{appId}/aws/dynamodb",
-			appHandler.AuthMiddleware(appHandler.GetDynamoDBMetrics)).Methods("GET")
-
-		// Cost analytics
-		r.HandleFunc("/api/apps/{appId}/aws/costs",
-			appHandler.AuthMiddleware(appHandler.GetCostAnalytics)).Methods("GET")
-
-		// App Store Analytics endpoints (protected)
-		r.HandleFunc("/api/apps/{appId}/appstore/downloads",
-			appHandler.AuthMiddleware(appHandler.GetAppStoreDownloads)).Methods("GET")
-
-		r.HandleFunc("/api/apps/{appId}/appstore/revenue",
-			appHandler.AuthMiddleware(appHandler.GetAppStoreRevenue)).Methods("GET")
-
-		// Health status endpoint (protected)
-		r.HandleFunc("/api/apps/{appId}/health",
-			appHandler.AuthMiddleware(appHandler.GetHealthStatus)).Methods("GET")
-
-		// Aggregated metrics endpoint (protected)
-		if metricsAggregator != nil {
-			r.HandleFunc("/api/apps/{appId}/metrics/aggregated",
-				appHandler.AuthMiddleware(metricsAggregator.GetAggregatedMetrics)).Methods("GET")
+	// If HTTPS mode is enabled, start both HTTP server and HTTPS proxy
+	if *httpsMode {
+		// Start the main HTTP server in a goroutine
+		app, err := NewApp(cfg)
+		if err != nil {
+			log.Fatal("Failed to initialize app:", err)
 		}
 
-		// Time series endpoints (protected)
-		if timeSeriesHandler != nil {
-			r.HandleFunc("/api/apps/{appId}/timeseries/lambda",
-				appHandler.AuthMiddleware(timeSeriesHandler.GetLambdaTimeSeries)).Methods("GET")
-
-			r.HandleFunc("/api/apps/{appId}/timeseries/apigateway",
-				appHandler.AuthMiddleware(timeSeriesHandler.GetAPIGatewayTimeSeries)).Methods("GET")
-
-			r.HandleFunc("/api/apps/{appId}/timeseries/dynamodb",
-				appHandler.AuthMiddleware(timeSeriesHandler.GetDynamoDBTimeSeries)).Methods("GET")
-
-			r.HandleFunc("/api/apps/{appId}/timeseries/cost",
-				appHandler.AuthMiddleware(timeSeriesHandler.GetCostTimeSeries)).Methods("GET")
+		srv := &http.Server{
+			Addr:         ":" + cfg.Port,
+			Handler:      app.Router(),
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			IdleTimeout:  cfg.IdleTimeout,
 		}
-	}
 
-	// Health check
-	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}).Methods("GET")
+		// Start HTTP server in background
+		go func() {
+			app.logger.Info("Starting HTTP server", "port", cfg.Port)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				app.logger.Error("HTTP server failed to start", "error", err)
+				os.Exit(1)
+			}
+		}()
 
-	// Setup CORS
-	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:4321", "https://*.ngrok-free.app", "https://*.ngrok.io"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"*"},
-		AllowCredentials: true,
-	})
+		// Give HTTP server time to start
+		time.Sleep(1 * time.Second)
 
-	handler := c.Handler(r)
+		// Start HTTPS proxy in another goroutine
+		go func() {
+			fmt.Printf("\n🔐 Starting HTTPS proxy for Apple Sign In testing...\n")
+			fmt.Printf("   HTTPS: https://local-dev.jcvolpe.me:%s\n", *httpsPort)
+			fmt.Printf("   Proxying to HTTP backend on port %s\n\n", cfg.Port)
 
-	log.Printf("Starting server on port %s", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatal(err)
+			if err := StartHTTPSProxy(cfg.Port, *httpsPort); err != nil {
+				log.Fatal("Failed to start HTTPS proxy:", err)
+			}
+		}()
+
+		// Handle graceful shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+		<-done
+
+		app.logger.Info("Shutting down servers...")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			app.logger.Error("Server shutdown failed", "error", err)
+		}
+		if err := app.Shutdown(ctx); err != nil {
+			app.logger.Error("App shutdown failed", "error", err)
+		}
+
+	} else {
+		// Normal HTTP-only mode (original behavior)
+		app, err := NewApp(cfg)
+		if err != nil {
+			log.Fatal("Failed to initialize app:", err)
+		}
+
+		srv := &http.Server{
+			Addr:         ":" + cfg.Port,
+			Handler:      app.Router(),
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			IdleTimeout:  cfg.IdleTimeout,
+		}
+
+		// Graceful shutdown
+		done := make(chan os.Signal, 1)
+		signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+		go func() {
+			app.logger.Info("Starting server", "port", cfg.Port)
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				app.logger.Error("Server failed to start", "error", err)
+				os.Exit(1)
+			}
+		}()
+
+		<-done
+		app.logger.Info("Server stopping")
+
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			app.logger.Error("Server shutdown failed", "error", err)
+			os.Exit(1)
+		}
+
+		if err := app.Shutdown(ctx); err != nil {
+			app.logger.Error("App shutdown failed", "error", err)
+			os.Exit(1)
+		}
+
+		app.logger.Info("Server exited")
 	}
 }

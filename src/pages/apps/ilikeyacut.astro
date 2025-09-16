@@ -1,9 +1,9 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import Dashboard from '../../components/Dashboard';
+import { AppAnalyticsDashboard } from '../../components/analytics/AppAnalyticsDashboard';
 import '../../styles/global.css';
 ---
 
 <Layout title="ilikeyacut Analytics - Central Dashboard">
-  <Dashboard client:only="react" />
+  <AppAnalyticsDashboard appId="ilikeyacut" client:only="react" />
 </Layout>

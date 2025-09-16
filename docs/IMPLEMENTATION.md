@@ -391,38 +391,44 @@ Backend in Go, deployed as AWS Lambda functions. Handles auth verification and a
 3. **CORS**:
    - Add CORS headers in handler for frontend access.
 
-## Step 4: Local Development with Single pnpm Command
-
-- In root `package.json`, update `dev` script:
-  ```
-  "dev": "concurrently \"pnpm --filter frontend dev\" \"pnpm --filter backend dev\""
-  ```
-- Run `pnpm dev` from root: Starts Astro at `localhost:4321` and Go at `localhost:3001`.
-- In frontend, proxy API calls: Update `astro.config.mjs` with `server.proxy` or use `fetch` with `http://localhost:3001`.
-
-## Step 5: Deployment Script
-
-Create `deploy.sh` in root (make executable: `chmod +x deploy.sh`):
+## Step 4: Local Development with Simplified Commands
 
 ```bash
-#!/bin/bash
+# One-time setup (installs deps, configures domain, generates certs)
+pnpm setup:dev
 
-# Build frontend
-pnpm --filter frontend build
-
-# Build backend
-pnpm --filter backend build
-
-# Deploy frontend to S3 + CloudFront
-aws s3 sync packages/frontend/dist s3://your-bucket-name --delete
-aws cloudfront create-invalidation --distribution-id YOUR_DISTRIBUTION_ID --paths "/*"
-
-# Deploy backend to Lambda + API Gateway
-aws lambda update-function-code --function-name your-lambda-name --zip-file fileb://packages/backend/bin/main.zip
-# If API Gateway needs update, use AWS CLI or console
-
-echo "Deployment complete"
+# Start all servers concurrently
+pnpm dev
 ```
+
+- Frontend runs at port 4321
+- Backend runs at port 8080
+- HTTPS proxy runs at port 3000
+- Access app at `https://dev.ilikeyacut.com:3000` (or your configured domain)
+- No manual proxy configuration needed - handled automatically
+
+## Step 5: Production Deployment
+
+```bash
+# Prepare for production
+pnpm setup:prod
+
+# Build everything
+pnpm build:all
+
+# Deploy to production (with confirmation)
+pnpm deploy
+
+# Or preview deployment
+pnpm deploy:dry-run
+```
+
+Deployment script automatically:
+- Builds frontend and backend
+- Syncs to S3 with optimized caching
+- Deploys backend to Lambda/EC2/ECS
+- Invalidates CloudFront cache
+- Runs health checks
 
 - Setup AWS resources first:
   - S3 bucket (static website hosting enabled).
@@ -479,8 +485,8 @@ jobs:
 
 ## Step 7: Testing and Final Touches
 
-- Local: `pnpm dev`, test login (use Apple's sandbox for dev).
-- Deploy: Run `./deploy.sh` manually first.
+- Local: `pnpm dev`, test login at `https://dev.ilikeyacut.com:3000`
+- Deploy: Run `pnpm deploy` for production deployment
 - Admin check: Hardcode your `sub` in env; in prod, use Secrets Manager.
 - Analytics: Extend backend to fetch real data (e.g., from DynamoDB).
 - Security: Use HTTPS, validate tokens properly, handle errors.

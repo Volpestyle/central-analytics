@@ -17,6 +17,23 @@ export const DashboardApp: React.FC = () => {
     }
   }, [isAuthenticated]);
 
+  // Helper function to extract username from email
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+
+    // First priority: actual name
+    if (user.name) return user.name;
+
+    // Second priority: extract username from email
+    if (user.email) {
+      const emailUsername = user.email.split('@')[0];
+      // Capitalize first letter
+      return emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1);
+    }
+
+    return 'User';
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -78,7 +95,7 @@ export const DashboardApp: React.FC = () => {
         {/* Welcome Card */}
         <div className="bg-surface rounded-2xl p-6 mb-6">
           <h2 className="text-2xl font-bold text-text-primary mb-2">
-            Welcome back, {user.name || user.email || 'User'}
+            Welcome back, {getUserDisplayName()}
           </h2>
           <p className="text-text-secondary">
             Monitor your applications and track performance metrics in real-time.

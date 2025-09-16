@@ -1,191 +1,348 @@
 # Central Analytics Dashboard
 
-A comprehensive Progressive Web App (PWA) for monitoring AWS infrastructure and App Store performance metrics for all deployed applications.
+A centralized analytics platform built as a Progressive Web App (PWA) for monitoring AWS infrastructure and App Store performance metrics across multiple applications. Currently monitoring the **ilikeyacut** iOS app with architecture designed for easy expansion to additional applications.
+
+## Overview
+
+Central Analytics Dashboard provides real-time monitoring and visualization of:
+- **AWS Infrastructure**: Lambda functions, API Gateway, DynamoDB, costs & usage
+- **App Store Analytics**: Downloads, revenue, user engagement metrics
+- **Unified Health Monitoring**: Per-application performance tracking
+- **Cross-Platform Access**: PWA architecture for web, mobile, and desktop
 
 ## Tech Stack
 
-- **Frontend**: Astro + React + TypeScript
+### Frontend
+- **Framework**: Astro v4 with React components
 - **Styling**: Tailwind CSS
-- **Charts**: ECharts
-- **Authentication**: Apple Sign In with biometric support (Face ID/Touch ID)
+- **Charts**: ECharts for data visualization
 - **State Management**: Zustand
-- **Backend**: Go serverless functions (AWS Lambda)
-- **Deployment**: AWS (S3 + CloudFront for frontend, Lambda + API Gateway for backend)
-- **Package Manager**: pnpm
+- **PWA**: Vite PWA plugin with offline support
+- **Authentication**: Sign in with Apple (biometric support)
 
-## Features
-
-### Authentication
-- Apple Sign In with Face ID/Touch ID support for iOS 26 and iPhone 17 Pro
-- 2FA with biometric as second factor
-- Admin privileges restricted to specific Apple ID
-- PWA-optimized authentication for both browser and installed app
-- Offline capability with background sync
-
-### Dashboard Visualizations
-- **AWS Infrastructure Monitoring**:
-  - Lambda function metrics (invocations, errors, duration, cold starts)
-  - API Gateway metrics (requests, error rates, latency)
-  - DynamoDB metrics (capacity usage, throttling, storage)
-  - Cost analytics with trends and projections
-
-- **App Store Analytics**:
-  - Downloads and install metrics
-  - Revenue tracking (IAP, ARPU)
-  - User engagement metrics
-  - Geographic distribution
-
-### Backend API
-- Apple token verification with JWT sessions
-- AWS CloudWatch metrics collection
-- App Store Connect API integration
-- Real-time data fetching with caching
-- Secure admin endpoints
+### Backend
+- **Language**: Go 1.22+ with modern practices (dependency injection, structured logging)
+- **Architecture**: Clean architecture, serverless/Lambda-ready with production-simulating local server
+- **AWS Services**: CloudWatch, Cost Explorer, DynamoDB, Lambda, API Gateway, Secrets Manager
+- **Authentication**: Apple JWT verification with admin access control
+- **API**: RESTful endpoints with CORS support, health checks, and metrics aggregation
+- **Dual Mode**: Development (with mocks) and production simulation modes
 
 ## Project Structure
 
 ```
 central-analytics/
-├── src/                     # Frontend source code
-│   ├── components/
-│   │   ├── auth/           # Authentication components
-│   │   ├── charts/         # Data visualization components
-│   │   └── Dashboard.tsx   # Main dashboard component
-│   ├── lib/                # Utilities and libraries
-│   ├── pages/              # Astro pages
-│   ├── stores/             # Zustand state management
-│   └── styles/             # Global styles
-├── packages/backend/        # Go serverless backend
-│   ├── cmd/                # Lambda function handlers
-│   ├── internal/           # Internal packages
-│   ├── deploy/             # Deployment configurations
-│   └── serverless.yml      # Serverless Framework config
-├── public/                 # Static assets
-│   ├── manifest.json       # PWA manifest
-│   └── sw.js              # Service worker
-└── docs/                   # Documentation
+├── docs/                       # Product & technical documentation
+│   ├── PRODUCT.md             # Product specifications
+│   ├── IMPLEMENTATION.md      # Implementation guide
+│   ├── DESIGN.md              # Design system specifications
+│   └── PWA-TECHNICAL.md       # PWA technical details
+├── packages/
+│   └── backend/               # Go backend service
+│       ├── cmd/               # Application entrypoints
+│       │   └── local-server/  # Local development server
+│       ├── internal/          # Internal packages
+│       │   ├── auth/         # Apple authentication
+│       │   ├── aws/          # AWS service integrations
+│       │   ├── config/       # Application configuration
+│       │   └── handlers/     # HTTP request handlers
+│       ├── scripts/          # Deployment & utility scripts
+│       └── Makefile          # Build commands
+├── src/                       # Frontend source code
+│   ├── components/           # React & Astro components
+│   │   ├── analytics/       # Analytics visualization components
+│   │   └── charts/          # Chart components
+│   ├── layouts/             # Page layouts
+│   ├── pages/               # Astro pages/routes
+│   │   └── apps/           # Per-app dashboard pages
+│   ├── stores/              # Zustand state stores
+│   └── lib/                 # Utilities & helpers
+├── public/                   # Static assets
+└── astro.config.mjs         # Astro configuration
 ```
 
-## Getting Started
+## Prerequisites
 
-### Prerequisites
-- Node.js 20+
-- Go 1.23+
-- pnpm 9+
-- AWS CLI configured
-- Apple Developer account
+- **Node.js**: v20 or higher
+- **pnpm**: v10.11.0 or higher
+- **Go**: 1.22 or higher
+- **AWS CLI**: Configured with appropriate credentials (for production simulation)
+- **Apple Developer Account**: For Sign in with Apple setup (optional for development)
+- **App Store Connect API Key**: For App Store metrics (optional)
 
-### Installation
+## Quick Start
 
-1. Clone the repository:
+### 1. Clone & Setup
+
 ```bash
-git clone <repository-url>
+# Clone the repository
+git clone https://github.com/yourusername/central-analytics.git
 cd central-analytics
+
+# Run automated setup (installs dependencies, configures domain, generates certificates)
+pnpm setup:dev
+
+# Configure your domain when prompted, or use default (dev.ilikeyacut.com)
 ```
 
-2. Install dependencies:
+### 2. Configure Credentials
+
 ```bash
-pnpm install
+# Edit .env files created by setup
+# Frontend configuration:
+vi .env
+# Add your Apple credentials:
+# - PUBLIC_APPLE_CLIENT_ID
+# - PUBLIC_ADMIN_APPLE_SUB
+
+# Backend configuration:
+vi packages/backend/.env
+# Add AWS credentials and Apple auth keys
 ```
 
-3. Set up environment variables:
+### 3. Start Development
+
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+# Start all servers (frontend, backend, HTTPS proxy)
+pnpm dev
+
+# Access the application at:
+# https://local-dev.jcvolpe.me:3000 (or your configured domain)
 ```
 
-4. Configure Apple Sign In:
-- Create App ID and Service ID in Apple Developer Console
-- Set redirect URLs
-- Generate private key for backend
+> **🔍 How Local Development Works:**
+> - The domain (e.g., `local-dev.jcvolpe.me`) points to your local machine (127.0.0.1) via `/etc/hosts`
+> - This is NOT deployed to the internet - it runs entirely on your computer
+> - The HTTPS proxy on port 3000 provides SSL certificates trusted by your browser
+> - Apple Sign-In works because Apple validates the domain name, not where it's hosted
+> - When you visit the URL, you're connecting to localhost with a valid domain name
+>
+> 📖 **[Read the detailed explanation →](docs/LOCAL_DEVELOPMENT.md)**
+
+## Development Commands
+
+### Setup & Configuration
+
+```bash
+pnpm setup:dev        # Smart setup - only updates what's needed
+pnpm setup:dev:force  # Force complete rebuild
+pnpm setup:prod       # Prepare for production deployment
+pnpm configure:domain # Reconfigure domain settings
+```
 
 ### Development
 
-Run the frontend and backend concurrently:
 ```bash
-pnpm dev
+pnpm dev              # Run all servers concurrently
+pnpm dev:frontend     # Run only frontend (Astro)
+pnpm dev:backend      # Run only backend (Go)
+pnpm dev:proxy        # Run only HTTPS proxy
 ```
 
-Frontend: http://localhost:4321
-Backend: http://localhost:3001
+### Build & Deploy
 
-### Build
-
-Build for production:
 ```bash
-pnpm build
+pnpm build            # Build frontend
+pnpm build:backend    # Build backend
+pnpm build:all        # Build everything
+
+pnpm deploy           # Deploy to production (with confirmation)
+pnpm deploy:dry-run   # Preview deployment without executing
 ```
 
-### Deployment
+## Production Deployment
 
-#### Frontend (S3 + CloudFront)
+### Prerequisites
+
+1. AWS CLI configured with appropriate credentials
+2. Production environment file created (`.env.production`)
+3. AWS resources provisioned (S3, CloudFront, Lambda, etc.)
+
+### Deploy to Production
+
 ```bash
-cd packages/backend
-make deploy-frontend
+# One-time production setup
+pnpm setup:prod
+
+# Build and deploy to production
+pnpm deploy
+# Type 'deploy' when prompted to confirm
+
+# Or preview what would be deployed
+pnpm deploy:dry-run
 ```
 
-#### Backend (Lambda + API Gateway)
+### Deploy Options
+
 ```bash
-cd packages/backend
-make deploy-serverless DEPLOY_ENV=production
+# Skip build (use existing dist)
+pnpm deploy -- --skip-build
+
+# Skip tests
+pnpm deploy -- --skip-tests
 ```
 
-Or use the deployment script:
+### Production Configuration
+
+Create `.env.production` with:
+
 ```bash
-./packages/backend/deploy/scripts/deploy.sh production serverless
-```
+# Production Environment
+NODE_ENV=production
 
-## Environment Variables
+# Apple Authentication
+PUBLIC_APPLE_CLIENT_ID=your_production_client_id
+PUBLIC_ADMIN_APPLE_SUB=your_admin_sub
 
-### Frontend (.env)
-```
-PUBLIC_APPLE_CLIENT_ID=your.apple.client.id
-PUBLIC_API_URL=https://api.your-domain.com
-```
+# API Configuration
+PUBLIC_API_URL=https://api.ilikeyacut.com
 
-### Backend
-```
-ADMIN_APPLE_SUB=your-apple-sub-identifier
-DEFAULT_APP_ID=ilikeyacut
+# AWS Configuration
 AWS_REGION=us-east-1
+AWS_S3_BUCKET=prod-central-analytics
+AWS_CLOUDFRONT_DISTRIBUTION_ID=your_distribution_id
 ```
 
-## PWA Features
+### What Deploy Does
 
-- Installable on all platforms
-- Offline support with service worker
+1. **Builds** frontend and backend for production
+2. **Syncs** frontend to S3 with optimized caching
+3. **Deploys** backend to your configured service (Lambda/EC2/ECS)
+4. **Invalidates** CloudFront cache
+5. **Runs** health checks on deployed services
+6. **Reports** deployment status and URLs
+
+## Configuration
+
+### Apple Sign in Configuration
+
+1. **Apple Developer Portal Setup**:
+   - Create an App ID with Sign in with Apple capability
+   - Create a Services ID for web authentication
+   - Configure return URLs (production domain + localhost for dev)
+   - Download private key for backend verification
+
+2. **Update Configuration**:
+   - Set `PUBLIC_APPLE_CLIENT_ID` in frontend .env
+   - Configure Apple private key in backend
+   - Set admin Apple subject ID for access control
+
+### AWS Configuration
+
+Required AWS services and permissions:
+- **CloudWatch**: Read access for metrics
+- **Cost Explorer**: Read access for cost data
+- **DynamoDB**: Read access to application tables
+- **API Gateway**: Read access for API metrics
+- **Lambda**: Read access for function metrics
+- **S3**: Read/Write for static hosting
+- **CloudFront**: Distribution management
+
+### PWA Configuration
+
+The app is configured as a PWA with:
+- Offline support via service worker
+- App installation prompt
+- Cache strategies for API and static assets
 - Background sync for failed requests
-- Push notifications (optional)
-- App shortcuts from home screen
 
-## Security
 
-- Apple ID token verification using JWKS
-- JWT-based session management
-- Admin access control via Apple sub identifier
-- Secrets stored in AWS Secrets Manager
-- HTTPS required for biometric authentication
+## Monitoring Applications
 
-## Testing
+### Currently Monitored: ilikeyacut
 
-Test on physical devices for biometric features:
-1. Deploy to HTTPS domain
-2. Install as PWA on iPhone 17 Pro
-3. Test Face ID authentication
-4. Verify offline functionality
+The dashboard currently monitors the ilikeyacut iOS app infrastructure:
 
-## CI/CD
+**AWS Resources**:
+- API Gateway: `ilikeyacut-api-dev`
+- Lambda Functions:
+  - `ilikeyacut-gemini-proxy-dev`
+  - `ilikeyacut-auth-dev`
+  - `ilikeyacut-templates-dev`
+  - `ilikeyacut-user-data-dev`
+  - `ilikeyacut-purchase-dev`
+  - `ilikeyacut-iap-webhook-dev`
+- DynamoDB Tables:
+  - `ilikeyacut-users-dev`
+  - `ilikeyacut-transactions-dev`
+  - `ilikeyacut-templates-dev`
+  - `ilikeyacut-rate-limits-dev`
 
-GitHub Actions workflow included for automated deployment:
-- Builds and tests on push to main
-- Deploys frontend to S3/CloudFront
-- Updates Lambda functions
-- Runs post-deployment tests
+### Adding New Applications
+
+To add monitoring for additional applications:
+
+1. Update `packages/backend/internal/config/apps.go`
+2. Add new app configuration with AWS resource mappings
+3. Create new dashboard page in `src/pages/apps/[appname].astro`
+4. Update navigation to include new app
+
+## Features
+
+### Real-Time Monitoring
+- Live AWS infrastructure metrics
+- App Store performance tracking
+- Cost analytics and projections
+- Error rate monitoring
+
+### Data Visualization
+- Interactive charts with ECharts
+- Time-series analysis
+- Cost breakdown by service
+- Geographic distribution maps
+
+### Progressive Web App
+- Install to home screen
+- Offline data access
+- Push notifications for alerts
+- Background data sync
+
+### Security
+- Apple Sign in with biometric support
+- Admin-only access control
+- JWT-based authentication
+- Secure API communication
+
+## Troubleshooting
+
+### Common Issues
+
+**Backend won't start**:
+- Check Go version: `go version` (requires 1.22+)
+- Verify AWS credentials are configured
+- Check port 8080 is available
+
+**Frontend build fails**:
+- Clear node_modules: `rm -rf node_modules && pnpm install`
+- Check Node version: `node --version` (requires v20+)
+- Verify pnpm is installed: `pnpm --version`
+
+**Apple Sign In not working**:
+- Ensure HTTPS is used (ngrok for local)
+- Verify Apple Services ID configuration
+- Check redirect URI matches configuration
+
+**PWA not installing**:
+- Must be served over HTTPS
+- Check manifest.json is accessible
+- Verify service worker registration
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
 
 ## License
 
-Private - All rights reserved
+Private repository - All rights reserved
 
 ## Support
 
-For issues or questions, please check the documentation in the `/docs` directory.
+For issues or questions, please contact the development team or create an issue in the repository.
+
+---
+
+Built with modern web technologies for optimal performance and user experience across all platforms.

@@ -160,30 +160,47 @@ func (c *CloudWatchClient) GetLambdaMetrics(ctx context.Context, functionName st
 			continue
 		}
 
-		// Get the latest value
-		latestValue := metricResult.Values[0]
+		// Calculate sum of all values for aggregated metrics
+		var total float64
+		for _, value := range metricResult.Values {
+			total += value
+		}
+
+		// For duration, we want the average across all data points
+		if *metricResult.Id == "duration" && len(metricResult.Values) > 0 {
+			total = total / float64(len(metricResult.Values))
+		}
 
 		switch *metricResult.Id {
 		case "invocations":
-			metrics.Invocations = latestValue
+			metrics.Invocations = total
 		case "errors":
-			metrics.Errors = latestValue
+			metrics.Errors = total
 		case "duration":
-			metrics.Duration = latestValue
+			metrics.Duration = total
 		case "throttles":
-			metrics.Throttles = latestValue
+			metrics.Throttles = total
 		case "concurrent":
-			metrics.ConcurrentExecutions = latestValue
+			// For concurrent executions, we want the maximum value
+			maxConcurrent := float64(0)
+			for _, value := range metricResult.Values {
+				if value > maxConcurrent {
+					maxConcurrent = value
+				}
+			}
+			metrics.ConcurrentExecutions = maxConcurrent
 		}
 
-		// Add datapoints for time series
-		for i, timestamp := range metricResult.Timestamps {
-			if i < len(metricResult.Values) {
-				metrics.Datapoints = append(metrics.Datapoints, MetricDatapoint{
-					Timestamp: timestamp,
-					Value:     metricResult.Values[i],
-					Unit:      string(metricResult.StatusCode),
-				})
+		// Add datapoints for time series (only for invocations to avoid duplication)
+		if *metricResult.Id == "invocations" {
+			for i, timestamp := range metricResult.Timestamps {
+				if i < len(metricResult.Values) {
+					metrics.Datapoints = append(metrics.Datapoints, MetricDatapoint{
+						Timestamp: timestamp,
+						Value:     metricResult.Values[i],
+						Unit:      "Count",
+					})
+				}
 			}
 		}
 	}
@@ -303,17 +320,39 @@ func (c *CloudWatchClient) GetAPIGatewayMetrics(ctx context.Context, apiName str
 			continue
 		}
 
-		latestValue := metricResult.Values[0]
+		// Calculate sum of all values for count metrics
+		var total float64
+		for _, value := range metricResult.Values {
+			total += value
+		}
+
+		// For latency, we want the average across all data points
+		if *metricResult.Id == "latency" && len(metricResult.Values) > 0 {
+			total = total / float64(len(metricResult.Values))
+		}
 
 		switch *metricResult.Id {
 		case "count":
-			metrics.Count = latestValue
+			metrics.Count = total
 		case "latency":
-			metrics.Latency = latestValue
+			metrics.Latency = total
 		case "error4xx":
-			metrics.Error4XX = latestValue
+			metrics.Error4XX = total
 		case "error5xx":
-			metrics.Error5XX = latestValue
+			metrics.Error5XX = total
+		}
+
+		// Add datapoints for time series (only for count to avoid duplication)
+		if *metricResult.Id == "count" {
+			for i, timestamp := range metricResult.Timestamps {
+				if i < len(metricResult.Values) {
+					metrics.Datapoints = append(metrics.Datapoints, MetricDatapoint{
+						Timestamp: timestamp,
+						Value:     metricResult.Values[i],
+						Unit:      "Count",
+					})
+				}
+			}
 		}
 	}
 
